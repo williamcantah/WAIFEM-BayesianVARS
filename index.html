@@ -1,0 +1,3476 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Econometric Modelling Experts Development Programme - Module III</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="William Godfred Cantah (Ph.D)" />
+    <meta name="date" content="2025-08-29" />
+    <script src="libs/header-attrs-2.29/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/panelset-0.3.0/panelset.css" rel="stylesheet" />
+    <script src="libs/panelset-0.3.0/panelset.js"></script>
+    <script src="libs/kePrint-0.0.1/kePrint.js"></script>
+    <link href="libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style2.css" type="text/css" />
+    <link rel="stylesheet" href="css/rutgers-fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+
+
+class: title-slide, middle
+background-image: url(fig/Tpage.png)
+background-position:center
+background-size: contain
+
+# **Econometric Modelling Experts Development Programme - Module III**
+### Bayesian Vector Autoregressive (BVARs) Models
+### 
+
+.directorate[
+William Godfred Cantah (Ph.D) &lt;br&gt;
+Department of Data Science and Economic Policy &lt;br&gt;
+School of Economics, UCC
+]
+
+
+---
+layout: true
+background-image: url(fig/Page.png)
+background-size: contain
+background-position: center
+
+---
+# Introduction to BVAR Models
+&lt;div style="font-size: 30px;"&gt;
+
+--
+
+* BVAR model combines the standard VAR model with Bayesian methods.
+
+&lt;br&gt;
+--
+
+* It treats the VAR's parameters as random variables with prior probability distributions, rather than fixed values.
+
+???
+A prior probability distribution, in the context of Bayesian statistics, represents the initial degree of belief in a hypothesis or the probability of an event before considering any new data. It is a way to incorporate existing knowledge or beliefs into the statistical analysis, allowing for a more flexible and informative approach to inference.
+
+&lt;br&gt;
+--
+
+&lt;br&gt;
+* It allows for the incorporation of prior information, which can help improve estimation and forecasting accuracy, especially in small samples or when dealing with many variables.
+
+--
+
+
+
+* BVAR models are particularly useful when the number of variables are large relative to the number of observations, as they can help mitigate overfitting and improve model stability.
+
+---
+# Why BVAR Models?
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- BVAR effectively tackles the ***.my-coral["curse of dimensionality"]*** in VARs by using prior information to shrink coefficients, preventing overfitting and leading to more stable estimates, especially with many variables.
+
+???
+
+- Multivariate macroeconomic models usually have a large number of parameters
+
+  - Note that `\(dof=(k^2\times p)+C\)`
+  
+  - Therefore for `\(VAR(4)\)` with 5 variables and a constant has 105 parameters, which requires 27 years of quarterly data
+  
+  - Without prior information, it is hard to obtain precise estimates of all the parameters
+  
+  - Also useful in State-Space models where all the unobserved variables and parameters are all random variables
+  
+  - Most macroeconomic datasets have a fairly limited number of observations
+  
+  - Yet we would often include a number of variables in the model
+  
+  - The use of time varying parameters (and similar innovations) eats up additional degrees of freedom
+  
+  - By imposing restrictions on parameters or shrinking them towards zero, we can deal with the over-parametrisation
+--
+
+- By reducing parameter uncertainty, BVAR consistently delivers more accurate out-of-sample forecasts compared to unrestricted VAR models.
+
+--
+
+- BVAR provides a formal mechanism to incorporate existing economic theory, expert opinions, or historical data into the model via prior distributions, leading to more economically sensible results.
+
+
+???
+
+BVARs are able to deal with misspecification &amp; uncertainty in a theoretically consistent manner since the parameters are random variables
+--
+
+- Unlike VARs that provide point estimates, BVAR yields full posterior distributions for parameters and derived quantities (like impulse responses), offering a more complete picture of model uncertainty through credible intervals.
+
+--
+
+- BVAR's ability to manage a large number of variables makes it well-suited for modern macroeconomic analysis where researchers often utilize extensive datasets with relatively short time series.
+
+
+---
+# Formulating BVAR Model
+&lt;div style="font-size: 27px;"&gt;
+--
+
+A ***.my-coral[Vector Autoregression]*** of order `\(p\)` is:
+
+--
+
+`$$y_t = c + A_1 y_{t-1} + \cdots + A_p y_{t-p} + \varepsilon_t$$`
+
+--
+
+where  
+- `\(y_t\)` is a `\(k\times1\)` vector of endogenous variables at time `\(t\)`.  
+
+--
+
+- `\(c\)` is a `\(k\times1\)` intercept vector.  
+
+--
+
+- `\(A_i\)` is a `\(k\times k\)` coefficient matrix for lag `\(i\)`.  
+
+--
+
+- `\(\varepsilon_t\sim \mathcal{N}(0,\Sigma)\)` is a `\(k\times1\)` error term. 
+
+--
+
+**Problem:** If `\(k\)` and `\(p\)` are large relative to `\(T\)`, OLS estimates get very imprecise.  
+???
+When the number of parameters `\((k·p)\)` approaches the sample size `\((T)\)`, there simply isn’t enough information to estimate each coefficient precisely, so the OLS estimator’s variance blows up. Algebraically, an ill‑conditioned `\(X'X\)` matrix (from too many regressors) leads to very large entries in its inverse, which directly inflate the variances of the estimated coefficients. In practice, this “overfitting” problem means large standard errors and unstable forecasts—one must therefore reduce dimensionality or introduce shrinkage (e.g., via Bayesian priors) to regain precision.
+
+
+---
+# From VAR to BVAR
+&lt;div style="font-size: 27px;"&gt;
+--
+
+- A Vector Autoregression of order `\(p\)` for a `\(k\)`‑dimensional series `\(y_t\)` is written in stacked form as:
+
+`$$Y=X\beta +E$$`
+
+--
+
+where
+
+* `\(Y\)` is the `\((T-p)\times k\)` matrix whose rows are `\(y_t' = (y_{t,1},\dots,y_{t,k})\)` for `\(t=p,\dots,T\)`.
+
+* `\(X\)` is the `\((T-p)\times(1 + k p)\)` regressor matrix, each row containing a 1 (intercept) followed by the stacked lags `\((y_{t-1}',\dots,y_{t-p}')\)`.
+
+* `\(\beta\)` is the `\((1 + k p)\times k\)` matrix that vertically stacks the intercept vector `\(c\)` and the coefficient matrices `\(A_1,\dots,A_p\)`.
+
+* `\(E\)` is the `\((T-p)\times k\)` matrix of errors, each row `\(\varepsilon_t'\sim \mathcal{N}(0,\Sigma)\)`.
+
+
+---
+# Prior Specification
+&lt;div style="font-size: 28px;"&gt;
+
+--
+
+- In a ***Bayesian VAR***, we place a joint prior on `\((\beta,\Sigma)\)`. A common choice is the Normal–Inverse‑Wishart:
+`$$\beta \mid \Sigma \;\sim\;\mathcal{N}\bigl(\beta_0,\;\Sigma \otimes V_0\bigr)$$`
+
+- `\(\beta\)` is the `\(((1 + kp) \times k)\)` matrix of all intercepts and lag coefficients, stacked column‑wise.  
+- `\(\beta_0\)` is the prior mean of the same size, typically zeros for off‑diagonal lags and ones on own first lags (Minnesota style).  
+- `\(\Sigma\)` is the `\((k\times k)\)` residual covariance matrix of the VAR errors.  
+- `\(V_0\)` is the `\(((1 + kp)\times(1 + kp))\)` covariance matrix governing how strongly each element of `\((\beta)\)` is shrunk toward its prior mean.  
+- `\(\otimes\)` denotes the Kronecker product, which ensures that uncertainty in each coefficient is scaled by the appropriate element of `\((\Sigma)\)`.
+
+---
+# Prior Specification Continued
+&lt;div style="font-size: 28px;"&gt;
+#### Why a "joint prior" on both `\(\beta\)` and `\(\Sigma\)`?
+- In a VAR we need to estimate two things:
+  - `\(\beta\)` the collection of all slope and intercept coefficients in each equation,
+  - `\(\Sigma\)` the matrix that describes how the shocks (residuals) in those equations move together.
+- A joint prior simply means we choose a rule that tells us, before seeing data, what combinations of `\((\beta -\Sigma)\)` we think are reasonable.
+#### Normal for `\(\beta\)`, Invers-Wishart for `\(\Sigma\)`
+- `\(\beta\)` is treated as if it comes from a multivariate normal distribution (that’s the “Normal” part).
+- `\(\Sigma\)` is treated as if it comes from an Inverse-Wishart distribution, which is a common choice for covariance matrices in Bayesian statistics (that’s the “Inverse-Wishart” part).
+
+???
+Inverse-Wishart Distribution: Detailed Notes
+The Inverse-Wishart distribution is a probability distribution defined on positive-definite matrices. It is the multivariate generalization of the inverse-gamma distribution (which is for scalar variances) and is widely used in Bayesian statistics as a conjugate prior for the covariance matrix of a multivariate normal distribution.
+
+1. Purpose and Role in BVAR Models
+In the context of BVAR models, the Inverse-Wishart distribution is typically chosen as the prior distribution for the error covariance matrix `\(\Sigma\)`.
+
+Recall the VAR model's error term assumption:
+
+`$$u_t ∼N(0,Σ)$$`
+
+where Σ is the k×k covariance matrix of the errors across the k variables.
+
+Choosing the Inverse-Wishart as a prior for Σ is beneficial because it is a conjugate prior to the multivariate normal likelihood function. This means that if the likelihood is multivariate normal (as it is for the VAR errors) and the prior for the covariance matrix is Inverse-Wishart, then the resulting posterior distribution for the covariance matrix will also be an Inverse-Wishart distribution. This property greatly simplifies the analytical derivation and computational sampling (e.g., in Gibbs sampling) of the posterior.
+
+2. Parameters of the Inverse-Wishart Distribution
+An Inverse-Wishart distribution is characterized by two parameters:
+
+Degrees of Freedom (ν): A scalar value, typically ν&gt;k−1, where k is the dimension of the square matrix (i.e., the number of variables in our VAR system). This parameter controls the shape and variance of the distribution. A larger ν implies a tighter distribution around the expected value, similar to how a larger sample size in frequentist statistics leads to more precise estimates.
+
+Scale Matrix (Ψ): A symmetric, positive-definite k×k matrix. This matrix influences the location or expected value of the distribution. It can be thought of as a "prior guess" for the shape and scale of the covariance matrix.
+
+
+---
+# Shrinkage Priors
+&lt;div style="font-size: 30px;"&gt;
+
+--
+
+- In basic terms, ***.my-coral[shrinkage prior]*** is a way of regularising (or controlling) how much freedom we allow the parameters of a BVAR model to have, especially when we have many variables or a small sample size.
+
+--
+
+- In BVAR, we often estimate many coefficients (lags of multiple variables). 
+
+--
+
+- This can lead to overfitting, where the model fits the sample data well but performs poorly in forecasting.
+
+--
+
+- To solve this, we use priors that "shrink" the coefficients—pulling them toward zero or toward some prior belief (*e.g., that variables only affect themselves and not others, or that longer lags matter less*).
+
+---
+# Shrinkage Priors
+&lt;div style="font-size: 30px;"&gt;
+
+--
+
+-  This shrinkage helps to stabilise estimates, reduce variance, and improve out-of-sample forecasts.
+
+--
+
+- The shrinkage prior is typically specified as:
+`$$A_i \sim \mathcal{N}(M_i,\,V_i)$$`
+
+where
+
+--
+
+- `\(A_i\)` is the coefficient matrix for lag `\(i\)`,
+
+- `\(M_i\)` is the prior mean (often zero or random-walk structure),
+
+- `\(V_i\)` is the prior covariance controlling **strength** of shrinkage.
+
+- Smaller diagonal entries of `\(V_i\)` ⇒ stronger shrinkage.
+
+???
+- Shrinkage priors are particularly useful in high-dimensional settings where the number of parameters to estimate is large relative to the number of observations, as they help prevent overfitting and improve model stability.
+
+- The choice of prior mean `\(M_i\)` and covariance `\(V_i\)` can be informed by economic theory, previous research, or empirical evidence, allowing for a more tailored approach to each specific application.
+
+
+---
+# Minnesota Prior
+&lt;div style="font-size: 30px;"&gt;
+
+--
+
+- Introduced in Doan, Litterman and Sims (1984), Litterman (1984), sometimes referred as the Litterman prior. Popular for its simplicity and good forecasting performance.
+
+--
+
+- ***.my-coral[Priors on variances of residuals:]*** diagonal (no covariances) with estimates of variances on diagonal. All equations can be estimated one-by-one.
+
+--
+
+- ***.my-coral[Priors on parameters:]*** most of all elements of the matrix of coefficients are set to zero. The restrictions differ for VAR in levels and VAR in growth rates.
+
+--
+
+  - VAR in levels: the dependent variable is assumed to follow RW, hence coefficient at the first lag of dependent variable is set to 1, all others to zero.
+  
+  - VAR in first differences: all priors set to zero, but there are some degrees of flexibility. *For instance, if a fair degree of persistence is expected, the prior for the coefficient at the first lag could be set to 0.9 or to similar values.*
+
+---
+# Minnesota Prior
+&lt;div style="font-size: 23px;"&gt;
+
+--
+- The **Minnesota prior** (Litterman 1979; Sims 1989) sets  
+
+  - `\(M_i=0\)` for all off-diagonal elements,  
+  
+  - Own‑lag (lag-1): `\(mean = 1\)`(random walk belief)
+
+- Prior variances for coefficient on lag `\(\ell\)` of variable `\(j\)` in equation for variable `\(i\)`:
+
+`$$V_i(a_{ij,\ell}) = \begin{cases}
+  (\frac{\lambda}{\ell})^2, &amp; \text{if } \ell=1\\
+  (\frac{\lambda \ \theta \ \sigma_i}{\ell \ \sigma_j} )^2 &amp; \text{if } \ell&gt;1
+  \end{cases}$$`
+- where  
+  - `\(\lambda&gt;0\)` is overall shrinkage hyperparameter,  
+  - `\(\theta&gt;0\)` is a relative shrinkage parameter,  
+  - `\(\ell\)` is the lag length,
+  - `\(\sigma_i\)` and `\(\sigma_j\)` estimated residual std devs from univariate AR models
+
+.
+---
+# Minnesota Prior
+&lt;div style="font-size: 28px;"&gt;
+
+--
+- The prior variances are inversely proportional to the square of the lag index, meaning that coefficients for longer lags are shrunk more strongly toward zero.
+
+--
+
+- The Minnesota prior is particularly effective in reducing the influence of long lags, which are often less reliable due to limited data, while allowing for more flexibility in the first lag, which is typically more informative.
+
+--
+
+- The prior can be adjusted by changing the `\(\lambda\)` parameter, which controls the overall strength of shrinkage applied to all coefficients.
+
+--
+
+- The Minnesota prior is widely used in empirical macroeconomic research due to its simplicity and effectiveness in improving forecast accuracy, especially in small samples or when dealing with many variables.
+
+--
+
+- It is often implemented in Bayesian VAR software packages, allowing researchers to easily apply it to their data without needing to manually specify the prior distributions for each coefficient.
+
+---
+#  Adaptive Hierarchical Priors (AHPs)
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- The AHPs extend the classic Minnesota-style shrinkage used in Bayesian VARs by letting the data (rather than the researcher) determine how tightly each coefficient is shrunk.
+
+--
+
+- AHPs use a hierarchical structure where the prior variances of coefficients are not fixed but adapt based on the data, allowing for more flexibility in how much shrinkage is applied to each coefficient.
+
+--
+
+- This approach allows for different degrees of shrinkage across coefficients, depending on their estimated importance or relevance in the model.
+
+--
+
+- AHPs are particularly useful in situations where the researcher is uncertain about the appropriate level of shrinkage or when the data suggest that some coefficients should be shrunk more than others.
+
+- Giannone et al. propose treating `\(\lambda\)` (and related hyper-parameters)  as an unknown and sampling them from a hyper-prior; the posterior therefore “learns” how much global shrinkage is optimal for the particular data-set and model dimension. 
+
+---
+#  Adaptive Hierarchical Priors (AHPs)
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- Subsequent work (e.g. Huber &amp; Feldkircher’s Normal-Gamma, Follett &amp; Yu’s Horseshoe) nests the hierarchical Minnesota inside a richer global–local scheme:
+
+`$$\beta_j \mid \lambda_j, \tau \sim \mathcal{N}(0, \tau^2 \lambda_j^2 \sigma^2), \quad \lambda_j^2 \sim \text{Local prior}, \quad \tau^2 \sim \text{Global prior}$$`
+
+#### Where:
+- `\(\beta_j\)`: Regression coefficient for the `\(j\)`-th predictor.
+- `\(\lambda_j^2\)`: Local shrinkage parameter that allows individual coefficients to escape global shrinkage (local prior).
+- `\(\tau^2\)`: Global shrinkage parameter that controls the overall degree of shrinkage applied to all coefficients (global prior).
+- `\(\sigma^2\)`: Variance of the model error term.
+- `\(\mathcal{N}(0, \cdot)\)`: Normal distribution with mean 0 and specified variance.
+
+---
+#  Adaptive Hierarchical Priors (AHPs)
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- This structure allows **adaptive shrinkage**: coefficients that are likely irrelevant are shrunk more (via `\(\tau^2\)`), while those with strong signals are allowed to escape shrinkage through larger `\(\lambda_j^2\)` values.
+
+--
+
+- The AHPs are particularly effective in improving forecast accuracy and impulse response estimation in Bayesian VARs, as they allow for a more data-driven approach to shrinkage.
+
+--
+
+- They are implemented in various Bayesian VAR software packages, allowing researchers to easily apply them to their data without needing to manually specify the prior distributions for each coefficient.
+
+--
+
+- AHPs are a powerful tool for Bayesian VAR modeling, providing a flexible and adaptive framework for incorporating prior information while allowing the data to guide the estimation process.
+
+---
+# Minnesota-Type Normal-Gamma Bayesian VARs (MT-NGBVARs)
+&lt;div style="font-size: 25px;"&gt;
+
+- **Large VAR Models in Macroeconomics:** VARs are workhorses for analyzing interconnected economic variables (e.g. output, inflation, interest rates). 
+- However, including many variables (`large VARs`) means estimating *hundreds* of parameters, which risks overfitting.  
+- **The Overfitting Challenge:** With limited data, unrestricted VARs suffer high estimation uncertainty and poor out-of-sample forecasts. 
+- We need to *shrink* estimates towards more plausible values to improve stability and forecast accuracy.  
+- **Bayesian Solution:** Bayesian VARs (BVARs) introduce **prior distributions** on the VAR coefficients to impose structure and shrinkage. Priors act as “regularization,” reducing parameter uncertainty and improving forecasts.  
+- **Classic Approach – Minnesota Prior:** The Minnesota prior (Litterman, 1980) became a popular choice to address overfitting by assuming each variable follows a random walk with drift. It shrinks coefficients on lagged variables towards zero (or unity for own first lag) in a sensible way.
+
+
+---
+# MT-NGBVARs
+&lt;div style="font-size: 25px;"&gt;
+
+- We consider a VAR(`\(p\)`) for `\(K\)` endogenous variables `\(\mathbf{y}_t = (y_{1t},\dots,y_{Kt})'\)` (e.g. GDP, inflation, etc.) at time `\(t\)`:
+
+--
+
+`$$\mathbf{y}_t = c + A_1\,\mathbf{y}_{t-1} + A_2\,\mathbf{y}_{t-2} + \cdots + A_p\,\mathbf{y}_{t-p} + \varepsilon_t$$` 
+
+--
+
+-  where `\(A_\ell\)` are `\(K\times K\)` coefficient matrices and `\(\varepsilon_t \sim N(\mathbf{0}, \Sigma)\)` is an error with covariance `\(\Sigma\)`.  
+
+--
+
+- **Number of Parameters:** Without priors, a VAR can have `\(K^2 p\)` slope parameters plus intercepts (and `\(\frac{K(K+1)}{2}\)` in `\(\Sigma\)`). For large `\(K\)` and `\(p\)`, this is enormous (e.g. `\(K{=}20\)`, `\(p{=}4\)` gives 1600+ coefficients!). Estimation uncertainty is severe
+
+--
+
+- **Bayesian Inference:** We place a prior on `\((A_1,\dots,A_p,\Sigma)\)` and combine it with the likelihood from data. The result is a posterior distribution for the coefficients. With a wisely chosen prior, even a large VAR can be estimated robustly, borrowing strength from prior beliefs.
+
+--
+
+- We focus on priors for the coefficients `\(A_\ell\)`. (Priors on `\(\Sigma\)` often use a simple form like an inverse-Wishart, or assume diagonal `\(\Sigma\)` for simplicity under Minnesota.)
+
+
+
+
+---
+# Minnesota Prior: Intuition
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- **Random Walk Belief:** The Minnesota prior assumes each variable `\(y_{i}\)` behaves like a random walk (especially suitable for macroeconomic aggregates). This implies a priori that variable `\(i\)`’s own first lag coefficient `\(\approx 1\)`, and other coefficients `\(\approx 0\)`.  
+
+--
+
+- **Prior Means:** Traditionally, `\(E[\text{coef}_{i,j,\ell}] = 0\)` for most coefficients, **except** `\(E[\text{coef}_{i,i,1}] = 1\)` for the own first lag (to allow for unit-root behavior). In practice, some implementations center all lag coefficients at 0, treating the random-walk as a soft tendency rather than exact mean 1.
+
+--
+
+- **Shrinkage Structure:** The Minnesota prior imposes **greater shrinkage on certain coefficients**:
+
+  - Coefficients on **longer lags** are more tightly shrunk to zero than short lags (decay with lag length).
+  
+  - **Cross-variable lags** (lag of variable `\(j\)` in equation `\(i\)` for `\(i\neq j\)`) are more tightly shrunk than own lags (lag of `\(i\)` in its own equation). 
+  
+  - Typically an uninformative (very loose) prior is placed on intercepts and any deterministic terms
+---
+# Minnesota Prior: Specification
+&lt;div style="font-size: 20px;"&gt;
+
+- Prior Variance Formula: For coefficient on variable `\(j\)`’s lag `\(\ell\)` in equation `\(i\)`:
+`$$\begin{cases} \frac{\lambda_1^2}{\ell^{\lambda_2}}, &amp; i=j \text{ (own lag)};\\[1ex] \frac{\lambda_1^2\,\lambda_3^2}{\ell^{\lambda_2}}, &amp; i\neq j \text{ (cross lag)}~, \end{cases}$$`
+
+- where `\(\lambda_1\)` controls overall tightness, `\(\lambda_2\)` controls lag decay, and `\(\lambda_3 &lt; 1\)` imposes extra shrinkage on cross-variable lags (Often this is further scaled by relative scale of variables to account for units).
+
+--
+
+- **Hyperparameters:** `\(\lambda_1\)` (overall tightness) is usually small (e.g. 0.1–0.2) to heavily shrink coefficients (as `\(\lambda_1 \to 0\)`, priors force coefficients to 0; large `\(\lambda_1\)` gives diffuse priors). 
+
+--
+
+- `\(\lambda_2\)` (lag decay) is often set to 1 or 2, meaning higher-order lags get `\(\frac{1}{\ell^{\lambda_2}}\)` much tighter priors.
+
+--
+
+- `\(\lambda_3\)` (cross-variable shrinkage) typically `\(\ll 1\)` (e.g. 0.2, so cross-lag coefficients have only 20% of the prior variance of own-lag coefficients).
+
+--
+
+- These hyperparameters can be chosen by rules of thumb or treated hierarchically and estimated from data.
+
+---
+# Minnesota Prior: Pros and Cons
+&lt;div style="font-size: 25px;"&gt;
+
+- Reduces overfitting by shrinking most coefficients towards zero.
+
+--
+
+- Often conjugate (or semi-conjugate) under assumptions (normal prior on coefficients, fixed diagonal `\(\Sigma\)`), so posterior computation is fast and analytically.
+
+--
+
+- Only a few intuitive hyperparameters (`\(\lambda\)`’s) which can be set to standard values (e.g. `\(\lambda_1 \approx0.2\)`, `\(\lambda_2=1\)`) that usually work well, or tuned to beliefs.
+
+
+--
+
+- **Cons:**
+  - Assumes all variables have similar dynamics (e.g. all behave like random walks), which may not hold in practice.
+  
+  - Can be too restrictive if some variables have very different dynamics (e.g. stationary vs. unit-root).
+  
+  - Shrinkage can lead to biased estimates if the true coefficients are far from the prior means.
+
+---
+# Beyond Minnesota: Global-Local Shrinkage
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Minnesota prior&lt;/span&gt; applies the same shrinkage level to all coefficients in a group (e.g. all cross-lags). 
+
+--
+
+- **Global-local shrinkage** allows different degrees of shrinkage for each coefficient, improving flexibility.
+
+--
+
+- The key idea: introduce a global parameter for overall shrinkage and a local parameter for each coefficient.
+
+--
+
+- Global-Local Structure: Each coefficient `\(\beta_{ij}\)` gets a prior with two levels
+  - a shared global shrinkage parameter (controls overall tightness/sparsity across all coefficients or a large subset),
+  
+  - an individual local shrinkage parameter, specific to `\(\beta_{ij}\)`, allowing some coefficients to be very tightly shrunk (if unimportant) while others can be relatively free (if the data deems them important).
+
+???
+
+- Spike-and-Slab vs. Continuous Shrinkage: One approach is spike-and-slab (e.g. Stochastic Search Variable Selection) which puts a mixture prior on each coefficient — a point-mass (spike at 0) with a certain probability and a diffuse distribution (slab) otherwise.
+
+- Global-local continuous shrinkage priors (like the Horseshoe or Normal-Gamma) achieve a similar effect without a discrete mixture their density is sharply peaked at zero (most coefficients a priori very small) but with heavy tails (allowing a few large coefficients if supported by data).
+
+
+---
+# Normal-Gamma (NG) Prior
+&lt;div style="font-size: 20px;"&gt;
+
+- The Normal-Gamma (NG) prior is a flexible global-local shrinkage prior that combines a normal distribution for the coefficients with a gamma distribution for their variances.
+
+--
+
+- The NG prior is defined as:
+
+ `$$\beta_{ij} \sim N(0, \tau^2 \sigma^2_{ij}), \quad \sigma^2_{ij} \sim \text{Gamma}(a, b)$$`
+
+- Where:
+  - `\(\beta_{ij}\)` is the coefficient for variable `\(i\)` at lag `\(j\)`.
+  - `\(\tau^2\)` is a global shrinkage parameter that controls the overall tightness of the prior.
+  - `\(\sigma^2_{ij}\)` is a local variance parameter for each coefficient, allowing for different degrees of shrinkage across coefficients.
+  - `\(a\)` and `\(b\)` are hyperparameters of the gamma distribution, controlling the shape and scale of the local variances.
+  
+- The NG prior allows for flexible shrinkage, where some coefficients can be very small (shrunk towards zero) while others can be larger, depending on the data.
+
+- The NG prior is particularly useful in high-dimensional settings where the number of coefficients is large, as it allows for adaptive shrinkage based on the data.
+
+---
+# Normal-Gamma (NG) Prior
+
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- The NG prior is conjugate, meaning that the posterior distribution of the coefficients given the data can be computed analytically.
+
+--
+
+- The posterior distribution of the coefficients under the NG prior is also a normal distribution, which allows for efficient sampling using Gibbs sampling or other MCMC methods.
+
+--
+
+- The NG prior can be combined with other priors, such as the Minnesota prior, to further improve estimation accuracy and control overfitting.
+
+--
+
+- The NG prior is particularly useful in large VAR models where the number of coefficients is large, as it allows for flexible shrinkage and improves estimation accuracy.
+
+--
+
+- The NG prior can also be used in conjunction with other Bayesian methods, such as empirical Bayes or hierarchical modeling, to further improve estimation accuracy and control overfitting.
+
+---
+# Minnesota-Type Normal-Gamma Prior
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Hybrid Prior: Recent work (Chan, 2021) combines the best of both worlds by embedding the NG prior into a Minnesota-style framework
+
+--
+
+- This allows for the intuitive shrinkage structure of Minnesota while retaining the flexibility of NG.
+
+--
+
+-  Each coefficient `\(\beta_{i,j,\ell}\)` has:
+
+  - a Minnesota variance scale `\(C_{i,j,\ell}\)` (as if it had a Minnesota prior, accounting for own vs cross and lag `\(\ell\)`),
+  
+  - its own local shrinkage `\(\psi_{i,j,\ell} \sim \Gamma(\nu_\psi,;\nu_\psi/2)\)`,
+  
+  - and separate global scales `\(\kappa_1\)` and `\(\kappa_2\)` for own-lag vs cross-lag coefficients respectively
+
+
+---
+# Minnesota-Type Normal-Gamma Prior
+&lt;div style="font-size: 25px;"&gt;
+
+- The prior becomes:
+
+`$$\beta_{i,j,\ell} \sim N\left(0, \frac{C_{i,j,\ell}}{\kappa_1^{\ell-1} + \kappa_2^{\ell-1}} \psi_{i,j,\ell}\right)$$`
+
+- where `\(\kappa_1\)` controls shrinkage for own lags and `\(\kappa_2\)` for cross lags.
+
+- The local `\(\psi_{i,j,\ell}\)` allows each coefficient to adaptively shrink based on its importance, while the global `\(\kappa_{g(i,j)}\)` controls overall tightness.
+
+- Essentially, we still give each coefficient a Minnesota-like prior variance `\(C_{i,j,\ell}\)`, but instead of a fixed normal prior, we make it an NG prior (with local `\(\psi\)` and appropriate global scale `\(\kappa_{g(i,j)}\)`).
+
+- This allows for flexible shrinkage while still imposing the Minnesota structure, enabling better estimation in large VARs.
+
+
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 23px;"&gt;
+--
+
+- To illustrate Bayesian VAR methods using some of the priors and methods described above, we use a quarterly US data set on the inflation
+rate `\(\Delta \pi_t\)` (the annual percentage change in a chain-weighted GDP price index), the unemployment rate `\(u_t\)` (seasonally adjusted civilian unemployment rate, all workers over age 16) and the interest rate rt (yield on the three month Treasury bill rate). Thus `\(y_t\)` = `\((∆π_t,u_t,r_t)\)`. The sample runs from 1953Q1 to 2006Q3. 
+
+
+``` r
+library(BVARWGC)
+library(vars)
+library(tsaccessories)
+library(readxl)
+data&lt;-read_excel("datawork/data.xlsx", sheet = "Sheet1")
+data_qt &lt;- tsconvert(data, start = c(1953, 1), period = "quarterly")
+tsplot(
+  data = data_qt,
+  vars = c("inflation", "unemployment_rate", "interest_rate"),
+  freq = "quarterly",
+  start_date = "1953-01-01"
+)
+
+tspanel_plot(
+  data = data_qt,
+  vars = c("inflation", "unemployment_rate", "interest_rate"),
+  freq = "monthly",
+  start_date =  "1953-01-01"
+)
+
+# Panel plot
+panel_plot &lt;- tspanel_plot(
+  data = data_qt,
+  vars = c("inflation", "unemployment_rate", "interest_rate"),
+  freq = "monthly",
+  start_date =  "1953-01-01"
+)
+print(panel_plot)
+```
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 23px;"&gt;
+
+![](Main-Slides_files/figure-html/unnamed-chunk-2-1.png)&lt;!-- --&gt;
+
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 20px;"&gt;
+
+.pull-left[
+
+``` r
+y &lt;- data_qt[, c("inflation", "unemployment_rate", "interest_rate")]
+# Use VARselect to choose lag length
+lag_selection &lt;- VARselect(y, lag.max = 4, type = "const")
+# The suggested lag orders (per criterion: AIC, HQ, SC, FPE)
+lag_selection$selection
+```
+
+```
+## AIC(n)  HQ(n)  SC(n) FPE(n) 
+##      3      2      2      3
+```
+
+``` r
+#Minnesota
+fit &lt;- BVARWGC::bvar(data_qt, y_vars = c("inflation", "unemployment_rate", "interest_rate"),
+             p = 2, prior = "mn", backend = "auto", draws = 8000, burn = 4000)
+```
+]
+
+
+.pull-right[
+
+``` r
+bvarsum(fit, holdout = 8)   
+postbvar(fit, lb_lags = 12, arch_lags = 2)
+bvarplots(fit, show = c("mcmc","residuals","acf","qq","roots","fit"))
+
+bvarirf(fit, H = 20, method = "cholesky", level = 0.90, plot = TRUE)
+bvarfevd(fit, H = 10, method = "cholesky", plot = TRUE)
+```
+
+]
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 23px;"&gt;
+
+
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 25px;"&gt;
+- Interpretation of Posterior Medians of Coefficients (from bvarsum):
+- **Inflation equation**
+  - Strongly persistent: lag(1) inflation = 1.451 (inflation today depends heavily on past inflation).
+  - Negative lag(2) inflation = -0.455 (dampening effect after two periods).
+  - Some small positive effect from unemployment (lag 2).
+- **Unemployment equation**
+  - Strong persistence: lag(1) unemployment = 1.262.
+  - Lag(2) unemployment = -0.362 (mean-reverting).
+- **Interest rate equation**
+  - Lag(1) interest rate = 0.817 (very persistent).
+  - Inflation (lag 1) raises interest rates (0.466) → consistent with monetary policy reaction.
+  - Unemployment (lag 1) lowers rates (-0.531) → possible policy easing during high unemployment.
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 25px;"&gt;
+- Overall, the model captures key macroeconomic dynamics:
+  - Inflation persistence with some mean-reversion.
+  - Unemployment persistence and mean-reversion.
+  - Interest rates responding to inflation and unemployment, consistent with monetary policy behavior.
+- The Minnesota prior effectively shrinks many coefficients toward zero, reducing overfitting and improving forecast stability.
+
+- Interpretation of Variance-Covariance Matrix (Shocks)
+  - Diagonal elements show the variance of shocks to each variable.
+  - Off-diagonal elements show covariances, indicating how shocks to one variable relate to shocks in another.
+   - Inflation shock variance = 0.099 (moderate).
+   - Interest rate shocks have the largest variance (0.583) → more volatile.
+   - Negative covariance between unemployment &amp; interest rate (-0.092) → when unemployment shocks rise, interest rate shocks tend to fall.
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 25px;"&gt;
+.pull-left[
+
+``` r
+postbvar(fit, lb_lags = 2, arch_lags = 2)
+```
+
+```
+## $lb_pvalue
+##         inflation unemployment_rate     interest_rate 
+##        0.52308032        0.37385210        0.07968397 
+## 
+## $jb_pvalue
+##         inflation unemployment_rate     interest_rate 
+##      0.0003648521      0.0000000000      0.0000000000 
+## 
+## $arch_pvalue
+##         inflation unemployment_rate     interest_rate 
+##      3.266786e-04      5.130991e-01      1.099200e-11 
+## 
+## $roots_mod
+## [1] 0.9510263 0.9510263 0.7005364 0.7005364 0.3625612 0.1200061
+## 
+## $is_stable
+## [1] TRUE
+## 
+## attr(,"class")
+## [1] "bvar_diagnostics"
+```
+]
+
+.pull-right[
+- Ljung–Box (Serial Correlation) - No Serial Correlation Detected
+
+- Jarque–Bera (Normality) - Residuals Appear not to be Normally Distributed
+
+- ARCH Test (Conditional Heteroskedasticity) - Evidence of ARCH Effects Detected except for unemployment equation.
+
+- Stability - All Roots Inside Unit Circle, VAR is Stable
+]
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 15px;"&gt;
+.pull-left[
+&lt;img src="img/density.png" width="450"/&gt;
+]
+
+
+.pull-right[
+**Overall MCMC Diagnostics**
+- ***Mixing:*** Both parameters show chains that move freely → good evidence of convergence.
+- ***Stationarity:*** No drifts or trends → the chain has reached equilibrium.
+- ***Posterior densities:*** Unimodal and smooth → no multimodality problems.
+- ***Effective sample size:*** Since you had ~3870 accepted draws, you likely have enough effective samples for inference.
+- The MCMC diagnostics indicate that the chains for both the marginal likelihood proxy (ml) and the shrinkage hyperparameter (λ) mix well and converge to stable distributions. The posterior distribution of λ is centered around 0.6, consistent with the optimized hyperparameter values reported earlier. This suggests moderate shrinkage of the Minnesota prior, providing a balance between parsimony and data-driven flexibility. The trace and density plots provide no evidence of non-convergence or multimodality.
+]
+
+---
+# Example BVAR Model
+&lt;div style="font-size: 20px;"&gt;
+
+.pull-left[
+.center[&lt;img src="img/irf.png" width="800"/&gt;]
+
+- IRF shows that inflation shocks generate strong and persistent increases in both interest rates and unemployment, consistent with a monetary tightening response.
+]
+
+.pull-right[
+
+- Interest rate shocks reduce inflation but raise unemployment, highlighting the trade-off faced by policymakers.
+
+- Unemployment shocks, by contrast, are highly persistent and deflationary, leading to countercyclical monetary easing. 
+
+- Together, these results confirm the presence of a Phillips curve relationship and a systematic Taylor-rule type policy response, while also underscoring the rigidity of unemployment dynamics relative to inflation and interest rates.
+]
+---
+# Example BVAR Model
+&lt;div style="font-size: 18px;"&gt;
+
+.pull-left[
+.center[&lt;img src="img/fevd.png" width="800"/&gt;]
+
+- Inflation is largely self-driven, though unemployment shocks account for up to 15% of its forecast variance at longer horizons.
+
+]
+
+.pull-right[
+- Interest rates, by contrast, become increasingly explained by inflation and unemployment shocks over time, consistent with systematic policy responses to macroeconomic conditions.
+- Unemployment remains mostly self-driven, with only modest contributions from inflation and interest rate shocks.
+- These findings highlight the persistence of unemployment, the self-reinforcing nature of inflation, and the endogenous nature of monetary policy.
+- Overall, the FEVD results highlight the dominant role of inflation shocks in driving interest rate dynamics, while unemployment appears more insulated from shocks to the other variables. 
+- This suggests that monetary policy primarily reacts to inflation developments, while unemployment follows a more persistent and less responsive path.
+]
+
+---
+# FA-BVAR
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- FA-BVAR combines the strengths of factor models and Bayesian VARs, allowing for the incorporation of a large number of variables while maintaining a parsimonious representation.
+
+
+--
+
+- FA-BVAR models are designed to handle large datasets by extracting a few unobserved "factors" (common underlying forces) that explain the co-movement of many macroeconomic variables.
+
+
+--
+
+- It builds on Bernanke et al. (2005)’s FAVAR by incorporating Bayesian shrinkage (e.g., Minnesota prior) to control overfitting.
+
+--
+
+- The model assumes that the observed variables can be expressed as a linear combination of a small number of latent factors and idiosyncratic errors.
+
+--
+
+- Basically the FA-BVAR model replaces a high-dimensional dataset `\(X_t\)` with a smaller set of latent factors `\(F_t\)` that capture the common variation in the data, allowing for more efficient estimation and forecasting of the VAR. `\([Y_t^{'}, F_t^{'}]\)` model. 
+
+
+???
+The FA-BVAR model is a powerful tool for analyzing large datasets in macroeconomics, as it allows researchers to focus on the underlying factors driving the data rather than being overwhelmed by the sheer number of variables. By combining factor analysis with Bayesian VAR techniques, it provides a flexible and robust framework for understanding complex economic relationships.
+
+
+ Imagine trying to predict the weather. A standard VAR might use temperature, humidity, and wind speed for a single location. A BFAVAR would be like also incorporating data from hundreds of weather stations globally, but summarizing that global data into a few "climate factors" before feeding them into your local prediction model. This provides a much richer information set without making your local model unwieldy.
+ 
+ 
+---
+# FA-BVAR Model - What it seeks to Solve
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- It was designed to overcome the limitations of traditional BVAR models by incorporating rich datasets via latent factors.
+
+--
+
+- FA-BVAR was originally introduced by Bernanke, Boivin &amp; Eliasz (2005) and later extended by Giannone, Lenza &amp; Primiceri (2015).
+
+--
+
+- Standard VAR models are flexible but overparameterized when many variables; high variance in estimates.
+
+--
+
+- Dynamic Factor Models (DFM) reduce dimension but may ignore dynamics in observables
+
+--
+
+- FA-BVAR combines the strengths of both approaches, allowing for a parsimonious representation of large datasets while capturing dynamic relationships.
+
+
+---
+# Comparison of VAR, BVAR, FAVAR, and BFAVAR
+
+&lt;div style="border: 1px solid #ddd; padding: 0px; overflow-y: scroll; height:400px; overflow-x: scroll; width:100%; "&gt;&lt;table class="table table-striped table-hover table-condensed table-responsive" style="font-size: 13px; width: auto !important; "&gt;
+ &lt;thead&gt;
+  &lt;tr&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Model Type &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Key Characteristics &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Primary Problem Addressed &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Advantages &lt;/th&gt;
+   &lt;th style="text-align:left;position: sticky; top:0; background-color: #FFFFFF;"&gt; Disadvantages / Limitations &lt;/th&gt;
+  &lt;/tr&gt;
+ &lt;/thead&gt;
+&lt;tbody&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; VAR &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Linear multivariate time-series model; captures joint dynamics; parameters are fixed values. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; None (base model) &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Flexible, atheoretical, easy to interpret for small systems. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; "Curse of dimensionality" (over-parameterization), "omitted variable bias" for large systems, unstable estimates, poor forecasts with many variables. &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; BVAR &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; VAR with Bayesian methods; parameters are random variables; uses informative priors for shrinkage. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; "Curse of dimensionality" (over-parameterization) &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Overcomes dimensionality, reduces parameter uncertainty, improves forecast accuracy, handles large systems (100+ variables). &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Can still suffer from omitted variable bias if key information is not in the included variables; prior choice can be subjective. &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; FAVAR &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Extends VAR by incorporating latent factors extracted from a large dataset. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; "Omitted variable bias" (limited information set) &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Incorporates large information sets parsimoniously, provides richer understanding of economic shocks, improves structural analysis. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Two-step estimation can complicate inference (generated regressors); factors may lack clear economic interpretation without further restrictions. &lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+   &lt;td style="text-align:left;"&gt; BFAVAR &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; FAVAR estimated using Bayesian methods; jointly estimates factors and parameters. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Both "Curse of dimensionality" and "Omitted variable bias" &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Combines strengths of BVAR and FAVAR; robust inference by addressing uncertainty in factors &amp;amp; parameters; single-step estimation; superior density forecasts, particularly at short horizons; better for structural analysis with rich information. &lt;/td&gt;
+   &lt;td style="text-align:left;"&gt; Computationally more intensive than two-step FAVAR; still requires careful prior elicitation and identification of factors. &lt;/td&gt;
+  &lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;&lt;/div&gt;
+
+
+---
+# Motivation for FA-BVAR
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- Use FA-BVAR when you have a large number of variables, but limited observations (e.g., 100–200) and want to avoid overfitting.
+
+--
+
+- Use it when you want to incorporate a wide range of macroeconomic indicators without losing the ability to estimate dynamic relationships.
+
+--
+
+- FA-BVAR is highly appropriate for structural analysis, especially for identifying and assessing the dynamic effects of economic shocks, such as monetary policy shocks. Traditional VARs often suffer from omitted variable bias, which can lead to puzzling results like the "price puzzle" or "liquidity puzzle". 
+
+--
+
+- FAVAR is designed to handle large information sets while maintaining the dynamic interpretability of VAR models, overcoming the limitations of both standard VARs (dimensionality) and pure factor models (lack of dynamic interaction modeling). 
+
+--
+
+- It provides a more robust and informative framework for macroeconomic forecasting and structural analysis.
+
+
+???
+Point 1 &amp; 2. 
+
+- FA-BVAR models are particularly well-suited for applications where researchers and policymakers need to analyze macroeconomic dynamics by leveraging a vast amount of information. 
+
+- In contemporary economies, a multitude of indicators—ranging from detailed sectoral data and financial market variables to consumer sentiment indices—contain crucial information about the current state and future evolution of the economy. 
+
+- BFAVAR's unique ability to process and incorporate the informational content of many time series, often hundreds, allows for a comprehensive understanding of complex interrelationships that would be intractable with smaller models. 
+
+- This capacity is invaluable for institutions like central banks, which rely on a wide array of data to infer the state of the economy, understand the main forces driving economic movements, and make informed policy decisions. 
+
+- By efficiently distilling information from a large number of variables, BFAVAR provides a coherent forecasting framework that can simultaneously forecast a larger set of core variables, offering a holistic view of the economy.
+
+
+
+Point 3.
+- By incorporating a rich information set through latent factors, FA-BVAR provides a more accurate and comprehensive picture of the monetary transmission mechanism.
+
+- The Bayesian framework also allows for flexible identification strategies, such as sign restrictions on impulse response functions, which can be imposed on a large number of variables to more precisely pin down the impact of policy shocks. 
+
+- This leads to more reliable and economically sensible impulse responses, as the larger information set helps to distinguish true structural shocks from model misspecification errors. 
+
+- The ability of BFAVAR to provide robust structural analysis, particularly for monetary policy shocks, makes it a practical, operational tool for informing monetary and fiscal policy decisions, allowing for more nuanced and data-driven interventions. 
+
+
+
+General 
+- Modern economies have hundreds of time series (output, prices, employment, finance, etc.). .my-coral[*Factor-Augmented VAR*] is proposed to exploit this rich information.
+
+
+
+- FAVAR use a few latent factors to summarize the co-movement in a large number of series. These factors, plus any key observed variables, enter a VAR. This .my-coral[*augmented VAR *]retains a manageable size but with a much *broader information set*.
+
+
+- FAVAR models are designed to handle large datasets by extracting a few unobserved "factors" (common underlying forces) that explain the co-movement of many macroeconomic variables.
+
+- FAVAR basically helps to:
+
+  - reduce omitted variable bias by including common factors that capture many variables’ information, 
+  
+  - mitigate arbitrary proxy choices by effectively using multiple indicators for each concept, and 
+  
+  - produce impulse responses for any variable in the large dataset (via the factors)
+
+
+Speaker Notes:
+The Factor-Augmented VAR (FAVAR) was developed as a direct response to the limitations of small VARs. Instead of throwing out most of the data, why not use it intelligently? The idea is to leverage the fact that in a large dataset, many series move together due to common underlying drivers (for instance, dozens of economic activity indicators might all load on a “business cycle” factor). Rather than adding 100 series into a VAR (impossible to estimate), we compress the information into a few latent factors. A FAVAR model typically includes:
+
+- A set of unobserved common factors F that summarize broad information (e.g., an “output factor,” “price factor,” “financial factor,” etc.), and
+
+- Possibly some observed key variables Y (especially those we don’t want to treat as latent, like the policy interest rate which is often included as an observed factor).
+
+
+These factors and observed variables together form an augmented state vector that follows a VAR. By doing this, we get a model that is roughly the same size as a traditional small VAR in terms of equations, but it implicitly includes the information from potentially hundreds of series through the factors. Bernanke et al.’s original FAVAR paper demonstrated that this approach indeed improved identification of monetary policy effects. They found that using the extra information from factors was important to properly uncover the monetary transmission mechanism and yielded a more comprehensive and coherent picture of policy effects
+
+
+. Essentially, FAVAR resolved some puzzles: for example, the price puzzle was greatly reduced when a broad price index factor (incorporating commodity prices and other forward-looking prices) was included, as we’ll see later. It also allowed them to compute impulse responses for variables that were not in the original small VAR – because once you have estimated factors and factor loadings, you can infer how any included series responds. To sum up, FAVAR is an elegant solution that bridges large information sets with tractable VAR analysis: it retains the flavor of VAR (data-driven, relatively flexible) but with the informational richness of factor models. Next, we’ll dig a bit deeper into what these “factors” are and how we extract them, which falls under Dynamic Factor Models.
+
+
+
+
+---
+# Specification of the FA-BVAR Model
+&lt;div style="font-size: 27px;"&gt;
+
+--
+#### FAVAR Structure
+- FA-BVAR involves two broad set of variables 
+
+
+  - ***.my-coral[Latent Factors]***: `\(F_t\)` (dimensionality `\(r\)`) Unobserved common factors extracted from a large dataset of macroeconomic variables.
+  
+  
+  - ***.my-coral[A Vector of observed Variables]***: Key variables `\(Y_t\)` (dimensionality `\(m\)`)  that are directly included in the model (e.g., policy interest rates, inflation rates).
+
+- The model assumes that the observed variables can be expressed as a linear combination of the latent factors and idiosyncratic errors.
+
+--
+
+- The latent factors `\(F_t\)` capture the common variation in the large dataset, while the observed variables `\(Y_t\)` provide additional information that is not captured by the factors alone.
+
+--
+
+- Together, `\(Z_t = [F_t^\prime,; Y_t^\prime]^\prime\)` (dimension `\(r+m\)`) follows a VAR.
+
+???
+Latent Factors  `\(F_t\)`
+
+ 
+Definition: These are unobserved (hidden) common factors extracted from a large panel of macroeconomic time series data.
+
+Purpose: Since macroeconomic datasets often contain hundreds of interrelated variables, factor models reduce this information into a smaller number of latent variables that capture the main dynamics.
+
+Dimensionality: Denoted as r, where r≪N (N being the total number of macroeconomic indicators).
+
+Estimation: Typically obtained using factor analysis or principal component analysis (PCA) applied to standardized macroeconomic data.
+
+Example: A latent factor might represent a general “business cycle” trend that influences many observed macro variables such as GDP, employment, consumption, etc.
+
+
+---
+# Specification of the FA-BVAR Model
+&lt;div style="font-size: 23px;"&gt;
+
+#### Measurement Equation
+
+$$X_t=\Lambda F_t + e_t, \ \ e_t \sim \mathcal{N}(0, \Psi) $$
+
+- Where 
+  - `\(X_t\)` is the `\(N\times1\)` vector of observed macroeconomic variables at time `\(t\)`.
+  - `\(\Lambda\)` is the `\(N\times r\)` matrix of factor loadings, capturing how each variable relates to the latent factors.
+  - `\(F_t\)` is the `\(r\times1\)` vector of latent factors at time `\(t\)`.
+  - `\(e_t\)` is the `\(N\times1\)` vector of idiosyncratic errors, assumed to be normally distributed with mean zero and covariance matrix `\(\Psi\)`.
+- The measurement equation captures how the observed variables `\(X_t\)` are linearly related to the latent factors `\(F_t\)` and their idiosyncratic errors `\(e_t\)`.
+- The factor loadings `\(\Lambda\)` indicate the strength and direction of the relationship between each observed variable and the latent factors.
+- Initial Factor Extraction
+  - Before Bayesian estimation, factors `\(F_t\)` are often initialized via Principal Components (Stock–Watson) or EM algorithms; these provide starting values for the joint sampler
+  
+  
+???
+## Measurement Equation
+
+&gt; **Presenter note (intuition first):**  
+&gt; Think of a large orchestra:  
+&gt; - The **latent factors** `\(F_t\)` play the role of the **conductor’s tempo and thematic motifs**, setting the underlying rhythm.  
+&gt; - The **loadings** `\(\Lambda\)` describe **how each musician (observed series) follows** the conductor—some stick closely to the theme, others less so.  
+&gt; - The **idiosyncratic errors** `\(e_t\)` are each musician’s **personal flourishes and timing quirks**, adding texture beyond the common beat.  
+&gt;
+&gt; This analogy captures how a handful of **hidden forces** can drive the collective performance of many observed variables.
+
+&gt; **Presenter note (equation):**  
+&gt; $$
+&gt; X_t = \Lambda\,F_t + e_t,\quad e_t \sim \mathcal{N}(0, \Psi)
+&gt; $$
+&gt; Here, `\(X_t\)` is the **full panel** of `\(N\)` observed macro‑financial indicators at time `\(t\)`, such as GDP growth, inflation, credit spreads, and interest rates.
+
+&gt; **Presenter note (`\(F_t\)`):**  
+&gt; `\(F_t \in \mathbb{R}^r\)` is a **low‑dimensional vector of latent factors** (`\(r \ll N\)`).  
+&gt; These factors capture the **unobserved common drivers**—for example, aggregate economic sentiment or financial conditions—extracted via PCA or factor analysis.
+
+&gt; **Presenter note (`\(\Lambda\)`):**  
+&gt; `\(\Lambda\)` is the `\(N\times r\)` **factor loading matrix**.  
+&gt; Each element `\(\lambda_{ij}\)` measures **how strongly** observed variable `\(X_{i,t}\)` “loads on” factor `\(j\)`.  
+&gt; A large magnitude indicates that `\(X_{i,t}\)` moves closely with `\(F_{j,t}\)`.
+
+&gt; **Presenter note (`\(e_t\)` and `\(\Psi\)`):**  
+&gt; `\(e_t\)` is the **idiosyncratic error vector**, assumed  
+&gt; `$$e_t \sim \mathcal{N}(0, \Psi)$$`  
+&gt; with `\(\Psi\)` **diagonal**. This implies each series `\(X_{i,t}\)` has its own residual variance `\(\psi_i\)`, and residuals are uncorrelated across series.
+
+&gt; **Presenter note (putting it together):**  
+&gt; - `\(\Lambda\,F_t\)` captures the **common component**—the part of `\(X_t\)` explained by **shared latent forces**.  
+&gt; - `\(e_t\)` captures **series‑specific “noise”** or measurement error.  
+&gt; When factors account for most of the shared dynamics, `\(\Psi\)` shrinks, leaving little idiosyncratic variance.
+
+&gt; **Presenter note (advantages):**  
+&gt; 1. **Dimensionality reduction:** We summarize `\(N\)` series with just `\(r\)` factors, making estimation tractable.  
+&gt; 2. **Signal vs. noise separation:** Clear partition between common drivers and individual shocks.  
+&gt; 3. **Forecasting &amp; policy analysis:** If `\(F_t\)` follows a VAR, we can trace how policy shocks propagate through the entire dataset.
+
+---
+# Specification of the FA-BVAR Model
+&lt;div style="font-size: 23px;"&gt;
+#### State Equation
+
+`$$\underbrace{\begin{pmatrix} Y_t \\ F_t \end{pmatrix}}_{Z_t}= \sum_{i=1}^{p} A_i Z_{t-i} + u_t \quad u_t \sim N(0, \Sigma)$$`
+
+- Where 
+  - `\(Y_t\)` is the `\(m\times1\)` vector of observed variables (e.g., policy rates, inflation) at time `\(t\)`.
+  - `\(F_t\)` is the `\(r\times1\)` vector of latent factors at time `\(t\)`.
+  - `\(Z_t = [Y_t^\prime, F_t^\prime]^\prime\)` is the `\((m+r)\times1\)` vector of all variables at time `\(t\)`.
+  - `\(A_i\)` is the `\((m+r)\times(m+r)\)` coefficient matrix for lag `\(i\)`.
+  - `\(u_t\)` is the `\((m+r)\times1\)` vector of errors, assumed to be normally distributed with mean zero and covariance matrix `\(\Sigma\)`.
+???
+- The state equation captures the dynamic relationships between the observed variables and the latent factors, allowing for lagged interactions and contemporaneous effects.
+
+- The model assumes that the joint dynamics of the observed variables and latent factors can be described by a VAR process, where the coefficients `\(A_i\)` capture the relationships across all variables at different lags.
+
+- The errors `\(u_t\)` represent the joint shocks to both the observed variables and the latent factors, allowing for contemporaneous correlations between them.
+
+- The state equation is estimated jointly with the measurement equation to obtain the posterior distributions of the parameters and latent factors.
+
+---
+# Shrinkage Priors in FA-BVAR
+&lt;div style="font-size: 27px;"&gt;
+
+- In FA-BVAR, we place priors on the coefficients `\(A_i\)` and the covariance matrix `\(\Sigma\)` to control overfitting and improve estimation accuracy.
+
+- These priors include 
+
+  - Minnesota Prior : 
+    - Coefficients for own lags are set to 1 (random walk belief), while others are shrunk toward zero.
+  - Hierarchical Minnesota Prior
+    - Coefficients are shrunk based on their lag length, with stronger shrinkage for longer lags.
+  - Adaptive Hierarchical Priors (AHPs)
+    - Coefficients are shrunk adaptively based on the data, allowing for different degrees of shrinkage across coefficients.
+
+---
+# Bayesian Estimation via Gibbs Sampling
+&lt;div style="font-size: 27px;"&gt;
+
+- The FA-BVAR model is estimated using Bayesian methods, typically via Gibbs sampling, which allows for efficient sampling from the posterior distributions of the parameters and latent factors.
+
+- The Gibbs sampler iteratively samples from the conditional distributions of the parameters and latent factors, updating them based on the observed data and the specified priors.
+
+- The sampling process involves:
+
+  - Sampling the latent factors `\(F_t\)` given the observed data and current parameter estimates.
+  - Sampling the coefficients `\(A_i\)` and covariance matrix `\(\Sigma\)` given the sampled latent factors.
+  - Updating the priors based on the sampled parameters and latent factors.
+
+???
+## 1. Role of Gibbs Sampling in BFAVAR  
+- **Joint estimation**: Instead of a two-step PCA + VAR, Gibbs sampling estimates factors `\((F_{1:T})\)` and parameters `\((\{\Lambda,\Phi,\Sigma\})\)` together, capturing sampling uncertainty at every stage :contentReference[oaicite:3]{index=3}.  
+- **Conjugacy**: With normal–inverse-Wishart and related priors, each conditional posterior has a known form, enabling closed-form sampling rather than Metropolis proposals :contentReference[oaicite:4]{index=4}.  
+- **Ragged panels &amp; mixed frequencies**: The Kalman forward-filter/backward-sample step handles missing or asynchronous observations naturally within the Gibbs cycle :contentReference[oaicite:5]{index=5}.
+
+
+
+## 2. Step-by-Step Conditional Draws  
+
+1. **Sample latent factors **  `\((F_{1:T})\)`
+   - Use the current loadings \(\Lambda\), VAR coeffs \(\{\Phi_i\}\), and covariance `\((\Sigma)\)` in a state-space Kalman smoother to draw full factor paths :contentReference[oaicite:6]{index=6}.  
+
+2. **Sample VAR parameters ** `\((\{\Phi_i\}\) and \(\Sigma)\)`  
+   - Treating `\((Z_t=[Y_t;F_t])\)` as observed, draw coefficients `\((\Phi_i)\)` and covariance `\((\Sigma)\)` from a matrix-normal–inverse-Wishart posterior :contentReference[oaicite:7]{index=7}.  
+
+3. **Sample factor loadings \(\Lambda\)**  
+   - Given `\((F_{1:T})\)` and `\((X_{1:T})\)`, each row of `\((\Lambda)\)` is sampled via a standard Bayesian regression with shrinkage priors (e.g.\ horseshoe, Dirichlet–Laplace) :contentReference[oaicite:8]{index=8}.  
+
+4. **Update hyper-parameters (shrinkage scales)**  
+   - Draw variance components (Minnesota tightness, local–global scales) from Gamma or inverse-Gamma conditionals, adapting the degree of shrinkage :contentReference[oaicite:9]{index=9}.
+
+
+
+## 3. Conveying Convergence &amp; Diagnostics  
+
+- **Trace plots**: Show parameter chains mixing without trends, resembling a “hairy caterpillar” :contentReference[oaicite:10]{index=10}.  
+- **Gelman–Rubin `\((\hat R)\)`**: Values near 1.0 across multiple chains indicate convergence :contentReference[oaicite:11]{index=11}.  
+- **Effective sample size**: Ensure sufficient independent draws for reliable credible intervals :contentReference[oaicite:12]{index=12}.  
+- **Burn-in &amp; thinning**: Explain that burn-in discards initial transient draws; thinning can reduce autocorrelation but is optional if chains are long enough :contentReference[oaicite:13]{index=13}.
+
+
+## 4. Using Posterior Draws  
+
+- **Point &amp; density estimates**: Compute posterior means, medians, and 90% credible intervals for parameters and factors :contentReference[oaicite:14]{index=14}.  
+- **Density forecasts**: For each draw of `\(((\Phi,\Sigma))\)`, simulate future `\((Z_{t+h})\)` to build fan charts for `\((Y)\)` and `\((F)\)` :contentReference[oaicite:15]{index=15}.  
+- **Impulse response functions**: Identify structural shocks (e.g.\ Cholesky or sign restrictions), then average IRFs over all draws for credible bands :contentReference[oaicite:16]{index=16}.  
+- **Variance decompositions**: Decompose forecast-error variance into contributions from common factors versus idiosyncratic shocks :contentReference[oaicite:17]{index=17}.
+
+
+## 5. Presenter Tips  
+
+- **Visual metaphor**: Compare Gibbs sampling to an assembly line with stations for factors, VAR, loadings, and hyper-parameters—each learning from the last.  
+- **Interactive demonstration**: Show students trace-plot animations across iterations, highlighting how chains “settle” into their stationary distribution.  
+- **Hands-on intuition**: Encourage students to think of each conditional draw as “filling in” one piece of a puzzle given the current picture of the rest.  
+
+---
+# Bayesian Estimation via Gibbs Sampling
+&lt;div style="font-size: 27px;"&gt;
+
+- The Gibbs sampler continues until convergence, producing samples from the posterior distribution of the parameters and latent factors.
+
+- The posterior samples can then be used to compute point estimates (e.g., means, medians) and credible intervals for the parameters, as well as to generate forecasts and impulse response functions.
+
+- The Bayesian framework allows for uncertainty quantification and robust inference, making FA-BVAR a powerful tool for macroeconomic analysis.
+
+- The Gibbs sampling approach is particularly useful in FA-BVAR because it allows for the joint estimation of the latent factors and the VAR parameters, which is crucial for capturing the dynamic relationships in large datasets.
+
+
+
+---
+# FA-BVAR Example
+&lt;div style="font-size: 27px;"&gt;
+
+.pull-left[
+
+``` r
+library(BVARWGC)
+library(vars)
+library(tsaccessories)
+library(readxl)
+library(BFAVAR)
+
+Y&lt;-read_excel("datawork/FAVAR.xlsx", sheet = "Sheet1")
+X&lt;-read_excel("datawork/FAVAR.xlsx", sheet = "Sheet2")
+
+df &lt;- X[, sapply(X, is.numeric)]
+
+bbe_obj &lt;- pca(data = df, y_var = "Interest rate",
+               x_vars = colnames(df)[1:116],
+               method = "BBE", ncomp_max = 5)
+F_bbe   &lt;- select_factors(bbe_obj, r = 1)
+
+
+y_vars &lt;- c("Inflation rate", "Unemployment rate", "Interest rate" )
+# 2) Compute FEVDs up to 10 horizons
+fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
+              p = 4, prior = "GLP", backend = "auto", draws = 8000, burn = 4000, thin = 2)
+bfavarsum(fit) 
+irf &lt;- bfavar_irf(fit, H = 20) # BVAR: bvar_irf object (use plot(irf)); bayesianVARs: list with IRFs
+#plot(irf)
+fe &lt;- bfavarfevd(fit, H = 5)
+
+# 3) Plot (stacked bars + % labels)
+p  &lt;- bfavarfevd2(fe)  
+print(p)
+```
+]
+
+.pull-right[
+
+```
+## 
+## === Factor Extraction (BBE) ===
+##   PC     Eigen PropPct CumPct
+##  PC1 71.867859   79.43  79.43
+##  PC2  8.173190    9.03  88.47
+##  PC3  5.890206    6.51  94.98
+##  PC4  3.669286    4.06  99.03
+##  PC5  0.874812    0.97 100.00
+## 
+## Use select_factors(obj, r = ...) to choose r factors for your FA-BVAR.
+```
+
+]
+
+---
+# FA-BVAR Example
+&lt;div style="font-size: 18px;"&gt;
+
+
+.pull-left[
+
+``` r
+fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
+              p = 4, prior = "GLP", backend = "auto", draws = 8000, burn = 4000, thin = 2)
+```
+
+```
+## Optimisation concluded.
+## Posterior marginal likelihood: -262.553
+## Hyperparameters: lambda = 0.49983; soc = 0.36911; sur = 0.38366
+## 
+  |                                                                            
+  |                                                                      |   0%
+  |                                                                            
+  |                                                                      |   1%
+  |                                                                            
+  |=                                                                     |   1%
+  |                                                                            
+  |=                                                                     |   2%
+  |                                                                            
+  |==                                                                    |   2%
+  |                                                                            
+  |==                                                                    |   3%
+  |                                                                            
+  |==                                                                    |   4%
+  |                                                                            
+  |===                                                                   |   4%
+  |                                                                            
+  |===                                                                   |   5%
+  |                                                                            
+  |====                                                                  |   5%
+  |                                                                            
+  |====                                                                  |   6%
+  |                                                                            
+  |=====                                                                 |   6%
+  |                                                                            
+  |=====                                                                 |   7%
+  |                                                                            
+  |=====                                                                 |   8%
+  |                                                                            
+  |======                                                                |   8%
+  |                                                                            
+  |======                                                                |   9%
+  |                                                                            
+  |=======                                                               |   9%
+  |                                                                            
+  |=======                                                               |  10%
+  |                                                                            
+  |=======                                                               |  11%
+  |                                                                            
+  |========                                                              |  11%
+  |                                                                            
+  |========                                                              |  12%
+  |                                                                            
+  |=========                                                             |  12%
+  |                                                                            
+  |=========                                                             |  13%
+  |                                                                            
+  |=========                                                             |  14%
+  |                                                                            
+  |==========                                                            |  14%
+  |                                                                            
+  |==========                                                            |  15%
+  |                                                                            
+  |===========                                                           |  15%
+  |                                                                            
+  |===========                                                           |  16%
+  |                                                                            
+  |============                                                          |  16%
+  |                                                                            
+  |============                                                          |  17%
+  |                                                                            
+  |============                                                          |  18%
+  |                                                                            
+  |=============                                                         |  18%
+  |                                                                            
+  |=============                                                         |  19%
+  |                                                                            
+  |==============                                                        |  19%
+  |                                                                            
+  |==============                                                        |  20%
+  |                                                                            
+  |==============                                                        |  21%
+  |                                                                            
+  |===============                                                       |  21%
+  |                                                                            
+  |===============                                                       |  22%
+  |                                                                            
+  |================                                                      |  22%
+  |                                                                            
+  |================                                                      |  23%
+  |                                                                            
+  |================                                                      |  24%
+  |                                                                            
+  |=================                                                     |  24%
+  |                                                                            
+  |=================                                                     |  25%
+  |                                                                            
+  |==================                                                    |  25%
+  |                                                                            
+  |==================                                                    |  26%
+  |                                                                            
+  |===================                                                   |  26%
+  |                                                                            
+  |===================                                                   |  27%
+  |                                                                            
+  |===================                                                   |  28%
+  |                                                                            
+  |====================                                                  |  28%
+  |                                                                            
+  |====================                                                  |  29%
+  |                                                                            
+  |=====================                                                 |  29%
+  |                                                                            
+  |=====================                                                 |  30%
+  |                                                                            
+  |=====================                                                 |  31%
+  |                                                                            
+  |======================                                                |  31%
+  |                                                                            
+  |======================                                                |  32%
+  |                                                                            
+  |=======================                                               |  32%
+  |                                                                            
+  |=======================                                               |  33%
+  |                                                                            
+  |=======================                                               |  34%
+  |                                                                            
+  |========================                                              |  34%
+  |                                                                            
+  |========================                                              |  35%
+  |                                                                            
+  |=========================                                             |  35%
+  |                                                                            
+  |=========================                                             |  36%
+  |                                                                            
+  |==========================                                            |  36%
+  |                                                                            
+  |==========================                                            |  37%
+  |                                                                            
+  |==========================                                            |  38%
+  |                                                                            
+  |===========================                                           |  38%
+  |                                                                            
+  |===========================                                           |  39%
+  |                                                                            
+  |============================                                          |  39%
+  |                                                                            
+  |============================                                          |  40%
+  |                                                                            
+  |============================                                          |  41%
+  |                                                                            
+  |=============================                                         |  41%
+  |                                                                            
+  |=============================                                         |  42%
+  |                                                                            
+  |==============================                                        |  42%
+  |                                                                            
+  |==============================                                        |  43%
+  |                                                                            
+  |==============================                                        |  44%
+  |                                                                            
+  |===============================                                       |  44%
+  |                                                                            
+  |===============================                                       |  45%
+  |                                                                            
+  |================================                                      |  45%
+  |                                                                            
+  |================================                                      |  46%
+  |                                                                            
+  |=================================                                     |  46%
+  |                                                                            
+  |=================================                                     |  47%
+  |                                                                            
+  |=================================                                     |  48%
+  |                                                                            
+  |==================================                                    |  48%
+  |                                                                            
+  |==================================                                    |  49%
+  |                                                                            
+  |===================================                                   |  49%
+  |                                                                            
+  |===================================                                   |  50%
+  |                                                                            
+  |===================================                                   |  51%
+  |                                                                            
+  |====================================                                  |  51%
+  |                                                                            
+  |====================================                                  |  52%
+  |                                                                            
+  |=====================================                                 |  52%
+  |                                                                            
+  |=====================================                                 |  53%
+  |                                                                            
+  |=====================================                                 |  54%
+  |                                                                            
+  |======================================                                |  54%
+  |                                                                            
+  |======================================                                |  55%
+  |                                                                            
+  |=======================================                               |  55%
+  |                                                                            
+  |=======================================                               |  56%
+  |                                                                            
+  |========================================                              |  56%
+  |                                                                            
+  |========================================                              |  57%
+  |                                                                            
+  |========================================                              |  58%
+  |                                                                            
+  |=========================================                             |  58%
+  |                                                                            
+  |=========================================                             |  59%
+  |                                                                            
+  |==========================================                            |  59%
+  |                                                                            
+  |==========================================                            |  60%
+  |                                                                            
+  |==========================================                            |  61%
+  |                                                                            
+  |===========================================                           |  61%
+  |                                                                            
+  |===========================================                           |  62%
+  |                                                                            
+  |============================================                          |  62%
+  |                                                                            
+  |============================================                          |  63%
+  |                                                                            
+  |============================================                          |  64%
+  |                                                                            
+  |=============================================                         |  64%
+  |                                                                            
+  |=============================================                         |  65%
+  |                                                                            
+  |==============================================                        |  65%
+  |                                                                            
+  |==============================================                        |  66%
+  |                                                                            
+  |===============================================                       |  66%
+  |                                                                            
+  |===============================================                       |  67%
+  |                                                                            
+  |===============================================                       |  68%
+  |                                                                            
+  |================================================                      |  68%
+  |                                                                            
+  |================================================                      |  69%
+  |                                                                            
+  |=================================================                     |  69%
+  |                                                                            
+  |=================================================                     |  70%
+  |                                                                            
+  |=================================================                     |  71%
+  |                                                                            
+  |==================================================                    |  71%
+  |                                                                            
+  |==================================================                    |  72%
+  |                                                                            
+  |===================================================                   |  72%
+  |                                                                            
+  |===================================================                   |  73%
+  |                                                                            
+  |===================================================                   |  74%
+  |                                                                            
+  |====================================================                  |  74%
+  |                                                                            
+  |====================================================                  |  75%
+  |                                                                            
+  |=====================================================                 |  75%
+  |                                                                            
+  |=====================================================                 |  76%
+  |                                                                            
+  |======================================================                |  76%
+  |                                                                            
+  |======================================================                |  77%
+  |                                                                            
+  |======================================================                |  78%
+  |                                                                            
+  |=======================================================               |  78%
+  |                                                                            
+  |=======================================================               |  79%
+  |                                                                            
+  |========================================================              |  79%
+  |                                                                            
+  |========================================================              |  80%
+  |                                                                            
+  |========================================================              |  81%
+  |                                                                            
+  |=========================================================             |  81%
+  |                                                                            
+  |=========================================================             |  82%
+  |                                                                            
+  |==========================================================            |  82%
+  |                                                                            
+  |==========================================================            |  83%
+  |                                                                            
+  |==========================================================            |  84%
+  |                                                                            
+  |===========================================================           |  84%
+  |                                                                            
+  |===========================================================           |  85%
+  |                                                                            
+  |============================================================          |  85%
+  |                                                                            
+  |============================================================          |  86%
+  |                                                                            
+  |=============================================================         |  86%
+  |                                                                            
+  |=============================================================         |  87%
+  |                                                                            
+  |=============================================================         |  88%
+  |                                                                            
+  |==============================================================        |  88%
+  |                                                                            
+  |==============================================================        |  89%
+  |                                                                            
+  |===============================================================       |  89%
+  |                                                                            
+  |===============================================================       |  90%
+  |                                                                            
+  |===============================================================       |  91%
+  |                                                                            
+  |================================================================      |  91%
+  |                                                                            
+  |================================================================      |  92%
+  |                                                                            
+  |=================================================================     |  92%
+  |                                                                            
+  |=================================================================     |  93%
+  |                                                                            
+  |=================================================================     |  94%
+  |                                                                            
+  |==================================================================    |  94%
+  |                                                                            
+  |==================================================================    |  95%
+  |                                                                            
+  |===================================================================   |  95%
+  |                                                                            
+  |===================================================================   |  96%
+  |                                                                            
+  |====================================================================  |  96%
+  |                                                                            
+  |====================================================================  |  97%
+  |                                                                            
+  |====================================================================  |  98%
+  |                                                                            
+  |===================================================================== |  98%
+  |                                                                            
+  |===================================================================== |  99%
+  |                                                                            
+  |======================================================================|  99%
+  |                                                                            
+  |======================================================================| 100%
+## Finished MCMC after 1.13 secs.
+```
+]
+
+
+.pull-right[
+
+```
+## Bayesian VAR consisting of 188 observations, 4 variables and 4 lags.
+## Time spent calculating: 1.13 secs
+## Hyperparameters: lambda, soc, sur 
+## Hyperparameter values after optimisation: 0.49983, 0.36911, 0.38366
+## Iterations (burnt / thinning): 8000 (4000 / 2)
+## Accepted draws (rate): 149 (0.037)
+## 
+## Numeric array (dimensions 17, 4) of coefficient values from a BVAR.
+## Median values:
+##                        Inflation rate Unemployment rate Interest rate     F1
+## constant                        0.187             0.016         0.142  0.162
+## Inflation rate-lag1             1.349             0.041         0.410  0.197
+## Unemployment rate-lag1         -0.198             1.219        -0.614 -0.194
+## Interest rate-lag1             -0.019            -0.065         0.979  0.010
+## F1-lag1                         0.014             0.141        -0.655  0.735
+## Inflation rate-lag2            -0.248             0.036        -0.239 -0.116
+## Unemployment rate-lag2          0.125            -0.161         0.374  0.112
+## Interest rate-lag2              0.004             0.036        -0.173 -0.082
+## F1-lag2                         0.038            -0.150         0.554  0.202
+## Inflation rate-lag3            -0.077            -0.022         0.147  0.067
+## Unemployment rate-lag3          0.004            -0.068         0.024  0.004
+## Interest rate-lag3              0.004             0.064         0.066  0.033
+## F1-lag3                        -0.021             0.019         0.145  0.097
+## Inflation rate-lag4            -0.029            -0.042        -0.194 -0.084
+## Unemployment rate-lag4          0.046            -0.028         0.212  0.075
+## Interest rate-lag4              0.005            -0.008         0.041 -0.001
+## F1-lag4                        -0.037            -0.014        -0.037 -0.028
+## 
+## Numeric array (dimensions 4, 4) of variance-covariance values from a BVAR.
+## Median values:
+##                   Inflation rate Unemployment rate Interest rate     F1
+## Inflation rate             0.101            -0.004         0.040  0.021
+## Unemployment rate         -0.004             0.073        -0.082 -0.020
+## Interest rate              0.040            -0.082         0.556  0.187
+## F1                         0.021            -0.020         0.187  0.087
+## 
+## Log-Likelihood: -155.1947
+```
+]
+
+
+
+---
+# FA-BVAR Example
+&lt;div style="font-size: 22px;"&gt;
+
+
+.pull-left[
+- Inflation is highly persistent and largely self-driven, but reacts negatively to unemployment (Phillips curve logic).
+
+- Unemployment is also persistent, with some influence from F1, suggesting common shocks captured by the factor (e.g., productivity shocks).
+
+- Interest rate responds to inflation and unemployment in a Taylor-rule fashion (tightens with inflation, loosens with unemployment).
+
+- F1 (latent factor) plays a meaningful role in both unemployment and interest rate equations → it may represent a common macro driver such as global conditions, commodity prices, or productivity trends.
+
+]
+
+
+.pull-right[
+
+``` r
+irf &lt;- bfavar_irf(fit, H = 20) # BVAR: bvar_irf object (use plot(irf)); bayesianVARs: list with IRFs
+#plot(irf)
+fe &lt;- bfavarfevd(fit, H = 10)
+plt_hs &lt;- bfavarfevd4(fe, horizons = 1:10, others_only = TRUE,
+                      palette = "viridis", label_min = 0.03, label_size_mm = 2)
+#print(plt_hs)
+```
+]
+
+---
+# FA-BVAR Example
+&lt;div style="font-size: 12px;"&gt;
+.pull-left[
+.center[&lt;img src="img/irf2.png" width="900"/&gt;]
+- Inflation dynamics: Mostly self-driven but reduced by interest rate hikes and unemployment shocks.
+- Unemployment rigidity: Strong persistence; reacts to policy and inflation shocks, but very sluggishly.
+- Monetary policy rule: Interest rate reacts positively to inflation and negatively to unemployment, consistent with a Taylor rule.
+- F1 (latent factor): Influences unemployment and interest rates significantly.
+]
+
+.pull-right[
+.center[&lt;img src="img/fevd2.png" width="900"/&gt;]
+- The FEVD results from the BFAVAR indicate that the latent factor (F1) explains a substantial share (30–35%) of the forecast error variance of all variables, particularly inflation and unemployment.
+- This stands in contrast to the standard BVAR, where inflation and unemployment were almost entirely self-driven.
+- Policy Behavior: Interest rates are heavily influenced by F1, suggesting the central bank indirectly reacts to global/latent forces, not just inflation and unemployment.
+]
+---
+# FA-BVAR Example
+&lt;div style="font-size: 20px;"&gt;
+
+``` r
+library(FAVAR)
+library(readxl)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(patchwork)
+Y&lt;-read_excel("datawork/FAVAR.xlsx", sheet = "Sheet1")
+X&lt;-read_excel("datawork/FAVAR.xlsx", sheet = "Sheet2")
+X &lt;- X[, sapply(X, is.numeric)]
+
+  "CBI","GDPC96","FINSLC96","CIVA","CP","CNCF","GDPCTPI","FPI","GSAVE", "PRFI",   "CMDEBT", "INDPRO",
+  "NAPM",   "HCOMPBS", "HOABS",  "RCPHBS", "ULCBS", "COMPNFB", "HOANBS", "COMPRNFB", "ULCNFB", "UEMPLT5", "UEMP5TO14", 
+  "UEMP15OV",  "UEMP15T26", "UEMP27OV",  "NDMANEMP", "MANEMP", "SRVPRD", "USTPU",  "USWTRADE",  "USTRADE", "USFIRE", 
+  "USEHS",  "USPBS",  "USINFO" , "USSERV", "USPRIV", "USGOVT", "USLAH", "AHECONS" , "AHEMAN", "AHETPI", "AWOTMAN" , 
+  "AWHMAN", "HOUST",  "HOUSTNE", "HOUSTMW", "HOUSTS", "HOUSTW", "HOUST1F", "PERMIT", "NONREVSL",  "USGSEC", "OTHSEC", 
+  "TOTALSL", "BUSLOANS",  "CONSUMER",  "LOANS",  "LOANINV", "INVEST", "REALLN", "BOGAMBSL", "TRARR",  "BOGNONBR",  
+  "NFORBRES",  "M1SL",   "CURRSL", "CURRDD", "DEMDEPSL",  "TCDSL",  "TB3MS", "TB6MS",  "GS1", "GS3", "GS5", "GS10",   
+  "MPRIME", "AAA","BAA","sTB3MS",  "sTB6MS", "sGS1",   "sGS3",   "sGS5",   "sGS10",  "sMPRIME", "sAAA",   "sBAA",   "EXSZUS", 
+  "EXJPUS", "PPIACO", "PPICRM", "PPIFCF", "PPIFCG", "PFCGEF", "PPIFGS", "PPICPE", "PPIENG", "PPIIDC", "PPIITM", 
+  "CPIAUCSL",  "CPIUFDSL",  "CPIENGSL",  "CPILEGSL",  "CPIULFSL",  "CPILFESL",  "OILPRICE", "HHSNTN", "PMI","PMNO",   
+  "PMDEL",  "PMNV",   "MOCMQ",  "MSONDQ", "Interest rate"
+  )
+
+# Build the logical factors vector required by FAVAR() (must align to columns of X)
+slowcode &lt;- colnames(X) %in% factors
+
+# Settings mirroring your frequentist VAR: 1 factors, 2 lags
+K    &lt;- 1
+plag &lt;- 2
+iter &lt;- 15000  # saved draws (nrep)
+burn &lt;- 5000   # burn-in (nburn)
+
+# Priors:
+#   factorprior: diffuse Normal-Gamma on factor eq.
+
+factor_prior &lt;- list(b0 = 0, vb0 = NULL, c0 = 0.01, d0 = 0.01)
+var_prior    &lt;- list(mn = list(kappa0 = 0.2, kappa1 = 0.5))  # classic, moderate shrink
+
+k_var &lt;- K + ncol(Y)          # number of VAR equations = K factors + |Y|
+var_prior &lt;- list(
+  b0  = 0,                    # coeff prior mean (0 = random walk around 0)
+  vb0 = 10,                   # coeff prior variance (bigger = looser)
+  nu0 = k_var + 2,            # dof for Sigma prior (min k+1; k+2 is weakly informative)
+  s0  = diag(k_var)           # scale matrix for Sigma prior
+)
+
+fit &lt;- FAVAR(
+  Y = Y, X = X,
+  fctmethod  = "BBE",
+  slowcode   = slowcode,
+  K          = K,
+  plag       = plag,
+  factorprior= list(b0 = 0, vb0 = NULL, c0 = 0.01, d0 = 0.01),
+  varprior   = var_prior,     # &lt;-- now has nu0 and s0
+  nburn      = burn,
+  nrep       = iter,
+  standardize= TRUE,
+  ncores     = 1
+)
+
+# In the internal VAR, variables are stacked as [F1..FK, Y].
+K_var   &lt;- K + ncol(Y)       # total VAR dimension
+imp_pos &lt;- K + 1             #  (K+1)-th variable (impulse position)
+
+vars_to_show &lt;- c("Inflation rate", "Unemployment rate", "Interest rate" )
+
+# Map names to indices in the [X, Y] space used by irf()
+XY_names &lt;- c(colnames(X), colnames(Y))
+res_idx  &lt;- match(vars_to_show, XY_names)
+res_idx  &lt;- res_idx[!is.na(res_idx)]   # drop any not-found names
+
+irf(
+  fit,
+  irftype  = "orth",
+  tcode    = "level",   # change if some series are in log/diff (vector also accepted)
+  resvar   = res_idx,
+  impvar   = imp_pos,
+  nhor     = 48,
+  ci       = 0.90,
+  showplot = TRUE
+)
+```
+
+
+---
+# Time-Varying Parameter BVARs (TVP-BVARs)
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+- Standard VARs impose the strong assumption of constant parameters over time, which may not hold in practice.
+
+--
+
+- In macroeconomics, such constancy is often unrealistic due to evolving economic conditions and policy regimes.
+
+--
+
+
+- Time-Varying Parameter BVARs (TVP-BVARs) relax this assumption by allowing the coefficients to change over time, capturing structural breaks and evolving relationships.
+
+--
+
+- TVP-BVARs are particularly useful in situations where the underlying economic relationships are expected to change, such as during financial crises, policy regime shifts, or structural changes in the economy.
+
+--
+
+- They can be estimated using Bayesian methods, often employing a random walk prior on the coefficients to allow for gradual changes over time.
+
+---
+# Nigeria Monetary Policy:Bad Policy or Bad Luck?
+
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- High inflation and real-GDP volatility in Nigeria (1970–2014): was it central-bank policy shifts or changing external shocks? 
+
+--
+
+#### “Bad Policy” story
+
+- TVP-VAR estimates reveal that the *immediate responses* of real GDP, FX reserves and inflation to a policy-rate shock vary significantly over time, suggesting that the CBN’s reaction function (i.e., the VAR coefficients) *changed under different governors* (Abdullahi, 2016).
+
+--
+
+#### “Bad Luck” story
+
+- Exogenous shocks—especially, *oil-market demand shocks*, exhibit *time-varying volatility*, which can *mimic* changes in policy effectiveness. Oil-shock variance spikes coincide with apparent regime shifts in impulse responses, implying that *stochastic volatility alone* can generate the look of structural breaks (Bello, 2024)
+
+---
+# Nigeria Monetary Policy:Bad Policy or Bad Luck?
+
+&lt;div style="font-size: 27px;"&gt;
+
+--
+
+### Methodological note
+
+- A TVP-VAR with stochastic volatility nests both stories by letting coefficients and shock variances evolve continuously, avoiding arbitrary break-date assumptions 
+
+
+### Recent policy context
+
+- After holding rates steady at 27.5%, the CBN has signaled a tight stance amid sticky inflation; understanding whether this reflects a deliberate policy shift or merely a response to more volatile shocks is crucial for future rate decisions.
+
+- The TVP-VAR framework allows for a nuanced analysis of the CBN's policy response, providing insights into whether recent rate decisions are driven by changing economic conditions or a shift in the central bank's reaction function.
+
+---
+# Empirical Evidence: Both Transmission and Volatility Change
+&lt;div style="font-size: 25px;"&gt;
+
+- Studies (Primiceri, 2005; Koop et al., 2009) show that **both** transmission mechanisms and shock variances vary over time.
+- Policy implications require models where both VAR coefficients and error covariances can change.
+- Extensive macro literature documents structural breaks and parameter changes (Stock \&amp; Watson, 1996).
+
+--
+
+### Alternative specifications:
+
+  - Markov switching VARs (Paap &amp; van Dijk, 2003; Sims &amp; Zha, 2006)
+
+  - Other regime-switching VARs (Koop &amp; Potter, 2006)
+
+
+- TVP–VARs have emerged as the most popular approach for modelling gradual parameter evolution.
+
+
+---
+# TVP–VAR: Model Structure
+&lt;div style="font-size: 25px;"&gt;
+## Formulation 
+
+ `$$y_t= {X}_t \beta_t + \varepsilon_t, \quad \varepsilon_t \sim N(\mathbf{0, \Sigma}) \\
+    \beta_t = \beta_t-1 + \eta_t, \quad \eta_t \sim N(\mathbf{0}, \mathbf{Q})$$`
+
+- Where
+  - `\(y_t\)` is the `\(N\times1\)` vector of observed variables at time `\(t\)`.
+  - `\({X}_t\)` is the `\(N\times K\)` matrix of predictors (including lags).
+  - `\(\beta_t\)` is the `\(K\times1\)` vector of time-varying coefficients at time `\(t\)`.
+  - `\(\varepsilon_t\)` is the `\(N\times1\)` vector of errors, assumed to be normally distributed with mean zero and covariance matrix `\(\Sigma\)`.
+  - `\(\eta_t\)` is the `\(K\times1\)` vector of innovations to the coefficients, assumed to be normally distributed with mean zero and covariance matrix `\(Q\)`.
+
+- The model allows the coefficients `\(\beta_t\)` to evolve over time according to a random walk process, capturing gradual changes in the relationships between the variables.
+
+---
+# Bayesian Estimation of TVP–VAR
+&lt;div style="font-size: 25px;"&gt;
+
+- The TVP–VAR model is estimated using Bayesian methods, typically via Gibbs sampling or other MCMC techniques.
+
+- The estimation process involves:
+
+  - Specifying priors for the coefficients `\(\beta_t\)` and the covariance matrices `\(\Sigma\)` and `\(Q\)`.
+  - Sampling from the posterior distributions of the parameters and latent variables using Gibbs sampling or other MCMC methods.
+  - Updating the priors based on the observed data and the sampled parameters.
+
+- Gibbs sampler alternates:
+-  Sample `\(\{\beta_t\}\)` using FFBS (conditioned on `\({\Sigma}, \mathbf{Q}\)`).
+- Sample `\(\Sigma\)` (inverse Wishart), `\(\mathbf{Q}\)` (inverse Wishart).
+- Hyperpriors on initial coefficients and state noise variances.
+- .my-coral[Key:] TVP–VAR is a high-dimensional, state space problem: Bayesian inference is efficient via MCMC.
+
+???
+
+Forward Filtering Backward Sampling (FFBS)
+
+- Bayesian estimation of Time‐Varying Parameter VARs relies on Markov Chain Monte Carlo (MCMC), specifically a Gibbs sampler, to draw from the joint posterior of the entire path of time‐varying coefficients and covariances. 
+
+- The core steps alternate between (1) sampling the latent coefficient trajectories `\(\{\beta_t\}\)` using Forward Filtering Backward Sampling (FFBS) conditioned on the covariance matrices `\(\Sigma\)` and `\(Q\)`, and (2) sampling the covariance matrices themselves from their posterior distributions.
+
+- The FFBS algorithm efficiently samples the entire path of time-varying coefficients `\(\{\beta_t\}\)` given the current estimates of the covariance matrices, allowing for a coherent estimation of the dynamic relationships in the data.
+
+- Sample `\(\{\Sigma, Q}\)` using conjugate priors (e.g., inverse Wishart for `\(\Sigma\)` and Wishart for `\(Q\)`).
+
+- The posterior samples can then be used to compute point estimates (e.g., means, medians) and credible intervals for the parameters, as well as to generate forecasts and impulse response functions.
+
+
+
+---
+# Homoskedastic TVP–VARs: Model Structure
+&lt;div style="font-size: 25px;"&gt;
+
+--
+##  Model equations:
+
+`$$y_t \;=\; Z_t\,\beta_t \;+\;\varepsilon_t, \quad
+\varepsilon_t \sim \mathcal{N}\bigl(0,\,\Sigma\bigr) \\ \beta_{t+1} \;=\; \beta_t \;+\; u_t, \quad
+u_t \sim \mathcal{N}\bigl(0,\,Q\bigr)$$`
+
+- Where
+  - `\(y_t\)` is the `\(N\times1\)` vector of observed variables at time `\(t\)`.
+  - `\(Z_t\)` is the `\(N\times K\)` matrix of predictors (including lags).
+  - `\(\beta_t\)` is the `\(K\times1\)` vector of time-varying coefficients at time `\(t\)`.
+  - `\(\varepsilon_t\)` is the `\(N\times1\)` vector of errors, assumed to be normally distributed with mean zero and covariance matrix `\(\Sigma\)`.
+  - `\(u_t\)` is the `\(K\times1\)` vector of innovations to the coefficients, assumed to be normally distributed with mean zero and covariance matrix `\(Q\)`.
+
+- TVP–VAR can allow for exogenous variables and (optionally) coefficients fixed over time
+
+???
+The TVP–VAR’s state‐space formulation consists of two linked parts: an observation equation that ties the observed macroeconomic variables to a set of coefficients that are allowed to change over time, and a state equation that treats those coefficients themselves as evolving according to a simple “random‐walk” process. By casting the model in this way, we can use the Kalman filter (or its Bayesian analogue) to infer the unobserved coefficient trajectories from the data, while hyperparameters governing the innovation variances determine how quickly those coefficients are permitted to drift. In practice, one alternates between estimating the full path of coefficients and updating the covariance parameters—often via a Gibbs sampler that leverages conjugate inverse‐Wishart priors—which makes the approach both flexible enough to capture gradual structural change and computationally tractable even in moderately large systems.
+
+---
+# Parameter Proliferation and Shrinkage
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- TVP–VARs have T times as many parameters as standard VARs.
+
+--
+
+- Hierarchical prior from state equation can provide sufficient shrinkage
+
+--
+
+- Shrinkage priors can be applied to the coefficients `\(\beta_t\)` to control overfitting and improve estimation accuracy.
+
+--
+
+- These priors include:
+
+  - Minnesota Prior: Coefficients for own lags are set to 1 (random walk belief), while others are shrunk toward zero.
+  - Hierarchical Minnesota Prior: Coefficients are shrunk based on their lag length, with stronger shrinkage for longer lags.
+  - Adaptive Hierarchical Priors (AHPs): Coefficients are shrunk adaptively based on the data, allowing for different degrees of shrinkage across coefficients.
+
+--
+
+- Often advisable to use tight priors on Q
+
+
+---
+# Shrinkage and Prior Choice
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Non-informative priors for `\(Q\)` can assign excessive probability to large `\(Q\)` (high coefficient variation)
+
+--
+
+- Careful choice of hyperparameters for `\(Q\)` and shrinkage priors (e.g., Minnesota, SSVS) is important
+
+--
+
+- Even with shrinkage, time-varying coefficients mean impulse responses can differ substantially over time
+
+
+
+???
+This slide emphasizes that allowing coefficients to drift freely in a time-varying model can lead to over-fitting unless we constrain how much they’re allowed to move. If you choose completely diffuse (non-informative) priors for the coefficient‐innovation variance𝑄, the model may place too much weight on large values of Q, causing coefficients to wander wildly and impulse responses to swing erratically. 
+
+- To prevent this, practitioners impose shrinkage priors—for example, Minnesota-style priors that pull parameter changes toward zero, or Stochastic Search Variable Selection (SSVS) priors that encourage many small coefficient innovations. Even with shrinkage, however, the very nature of a time-varying framework means that the dynamic responses to shocks can still vary substantially over time; the goal of shrinkage is simply to ensure that such variation is driven by genuine data evidence rather than noise.
+
+---
+# Combining TVP with Minnesota or SSVS Priors
+&lt;div style="font-size: 29px;"&gt;
+
+--
+
+- TVP–VAR can be combined with Minnesota or SSVS priors:
+
+  - Minnesota prior shrinks coefficients for lags other than the own lag toward zero.
+  - SSVS prior allows for variable selection by shrinking some coefficients to exactly zero.
+
+`$$\beta_{t+1} = A_0 \beta_t + (I - A_0) \beta_0 + u_t$$`
+- `\(A_0\)` and `\(\beta_0\)` set or estimated to reflect prior beliefs
+
+- SSVS prior: allows for variable selection, promoting sparsity and reducing over-parameterisation
+
+
+???
+- Combining TVP–VARs with shrinkage priors involves embedding your time-varying coefficient framework within a structure that tethers parameter drift to economically plausible bounds. Under a Minnesota-style prior, you impose tighter variance on cross-equation and higher-lag coefficients—shrinking them toward zero unless the data strongly support movement—while still allowing each coefficient to evolve over time. 
+
+- Alternatively, an SSVS prior treats each coefficient innovation as a mixture of a “spike” (near zero variance) and a “slab” (larger variance), effectively selecting only those coefficients whose time-variation is warranted by the evidence and setting the rest (temporarily) to zero. 
+
+- In both cases, you calibrate hyperparameters—either the Minnesota decay rates or the spike-and-slab variances and inclusion probabilities—to control the degree of allowed flexibility. This layered approach preserves the ability of TVP models to capture genuine structural change (“bad policy”) while guarding against over-fitting driven by noise (“bad luck”), promoting parsimonious, robust inference in high-dimensional VARs.
+
+---
+# Hierarchical Priors and Layered State Eq
+&lt;div style="font-size: 30px;"&gt;
+
+- Can add another state equation (Chib &amp; Greenberg, 1995):
+
+`$$\bf{\beta}_{t+1} = A_0 \bf{\theta}_{t+1} + \bf{u}_t \\ \bf{\theta}_{t+1} = \bf{\theta}_t + \bf{\eta}_t$$`
+
+- `\(A_0\)` can encode shared structure across groups (e.g., panel VARs)
+
+- Allows for parsimonious specification and information pooling
+
+- The hierarchical prior structure allows for more flexible modeling of the time-varying coefficients, enabling the model to capture common patterns across different variables or groups.
+
+???
+
+- Hierarchical priors augment the basic TVP framework by introducing an extra layer of latent states that govern how the time-varying coefficients themselves evolve, enabling the model to “borrow strength” across related equations or units.
+
+- Concretely, instead of treating each coefficient path as an independent random walk, one posits that they are driven by a lower-dimensional set of factors or shared parameters—often denoted by a common state vector θₜ—multiplied by a loading matrix A₀.
+
+- This construction means that any group of coefficients can fluctuate coherently according to overarching dynamics captured by θₜ, while idiosyncratic movements are still accounted for via individual innovations uₜ.
+
+- In panel-VAR settings or models with many related variables, this layered approach drastically reduces the effective number of parameters, pools information across series, and focuses estimation on common structural shifts rather than noise. 
+
+- The result is a parsimonious yet flexible specification that can adapt to evolving relationships both at the group level (through θₜ) and at the individual coefficient level (through uₜ), improving estimation stability and interpretability in high-dimensional TVP-VARs.
+
+
+
+
+---
+# Imposing Inequality Restrictions
+&lt;div style="font-size: 25px;"&gt;
+
+- TVP–VARs may require stability: restrict roots of VAR polynomial to be outside the unit circle
+
+--
+
+- Inequality restrictions can be imposed on the coefficients to ensure stability and economic plausibility.
+
+--
+
+- These restrictions can be incorporated into the prior distributions or as constraints in the estimation process.
+
+--
+
+- Standard MCMC algorithms do not naturally handle such constraints
+
+--
+
+- Approaches:
+  - Reject entire vector if any draw violates restriction (can be inefficient)
+  
+  - Single-move algorithms (draw one `\(\beta_t\)` at a time; slow mixing but better feasibility)
+  
+- See Koop &amp; Potter (2009) for algorithmic details.
+
+???
+- Inequality restrictions in TVP–VARs are imposed to ensure that, at each point in time, the VAR remains stationary by keeping the roots of its characteristic polynomial outside the unit circle—otherwise impulse responses can explode and economic interpretation breaks down. 
+
+
+- Practitioners incorporate these restrictions either by truncating the prior so that disallowed coefficient values have zero probability or by rejecting any MCMC draw that yields instability. 
+
+
+- The simplest “global‐move” approach—drawing the entire coefficient path via FFBS and discarding it if any period is unstable—is easy to implement but often suffers from extremely low acceptance rates. 
+
+- A more efficient alternative is a “single‐move” or block‐update sampler, which perturbs one coefficient (or small block) at a time and checks stability locally; this improves feasibility at the cost of slower mixing across the full state space.
+
+- For detailed algorithms and exact‐sampling solutions, see Koop and Potter (2011), who develop both exact and approximate MCMC schemes that honor inequality constraints without relying on prior normalizing‐constant approximations. 
+
+---
+#  Stochastic Volatility in TVP–VARs
+&lt;div style="font-size: 25px;"&gt;
+
+- Previous discussion focused on homoskedastic TVP–VARs (constant `\(\Sigma\)`)
+
+--
+
+- TVP–VARs can incorporate stochastic volatility to capture time-varying error variances.
+
+--
+
+- Stochastic volatility allows the model to account for changing uncertainty in the data, which can be particularly important in macroeconomic applications.
+
+
+--
+
+- Allowing for multivariate stochastic volatility is critical in most empirical macroeconomics applications
+
+--
+
+- Stochastic volatility can be incorporated into the model by allowing the covariance matrix `\(\Sigma\)` to evolve over time according to a random walk or other stochastic process.
+
+- The model can be expressed as:
+
+`$$Z_t = \sum_{i=1}^{p} A_i(t) Z_{t-i} + u_t, \quad u_t \sim N(0, \Sigma(t))$$`
+
+???
+- Where:
+  - `\(Z_t\)` is the `\((m+r)\times1\)` vector of observed variables and latent factors at time `\(t\)`.
+  - `\(A_i(t)\)` is the `\((m+r)\times(m+r)\)` coefficient matrix for lag `\(i\)` at time `\(t\)`, allowing for time-varying coefficients.
+  - `\(\Sigma(t)\)` is the covariance matrix of the errors at time `\(t\)`, allowing for time-varying volatility.
+  
+
+- The model assumes that the coefficients `\(A_i(t)\)` and the covariance matrix `\(\Sigma(t)\)` follow a random walk process, allowing them to change gradually over time.
+
+- The random walk prior on the coefficients allows for gradual changes, capturing the evolving nature of economic relationships.
+
+- The stochastic volatility component allows the model to account for changing uncertainty in the data, which can be particularly important in macroeconomic applications where volatility may vary due to structural changes or external shocks.
+
+
+---
+# Minnesota-Type Normal-Gamma Bayesian VARs (MT-NGBVARs)
+&lt;div style="font-size: 25px;"&gt;
+
+- **Large VAR Models in Macroeconomics:** VARs are workhorses for analyzing interconnected economic variables (e.g. output, inflation, interest rates). 
+- However, including many variables (`large VARs`) means estimating *hundreds* of parameters, which risks overfitting.  
+- **The Overfitting Challenge:** With limited data, unrestricted VARs suffer high estimation uncertainty and poor out-of-sample forecasts. 
+- We need to *shrink* estimates towards more plausible values to improve stability and forecast accuracy.  
+- **Bayesian Solution:** Bayesian VARs (BVARs) introduce **prior distributions** on the VAR coefficients to impose structure and shrinkage. Priors act as “regularization,” reducing parameter uncertainty and improving forecasts.  
+- **Classic Approach – Minnesota Prior:** The Minnesota prior (Litterman, 1980) became a popular choice to address overfitting by assuming each variable follows a random walk with drift. It shrinks coefficients on lagged variables towards zero (or unity for own first lag) in a sensible way.
+
+
+---
+# MT-NGBVARs
+&lt;div style="font-size: 25px;"&gt;
+
+- We consider a VAR(`\(p\)`) for `\(K\)` endogenous variables `\(\mathbf{y}_t = (y_{1t},\dots,y_{Kt})'\)` (e.g. GDP, inflation, etc.) at time `\(t\)`:
+
+--
+
+`$$\mathbf{y}_t = c + A_1\,\mathbf{y}_{t-1} + A_2\,\mathbf{y}_{t-2} + \cdots + A_p\,\mathbf{y}_{t-p} + \varepsilon_t$$` 
+
+--
+
+-  where `\(A_\ell\)` are `\(K\times K\)` coefficient matrices and `\(\varepsilon_t \sim N(\mathbf{0}, \Sigma)\)` is an error with covariance `\(\Sigma\)`.  
+
+--
+
+- **Number of Parameters:** Without priors, a VAR can have `\(K^2 p\)` slope parameters plus intercepts (and `\(\frac{K(K+1)}{2}\)` in `\(\Sigma\)`). For large `\(K\)` and `\(p\)`, this is enormous (e.g. `\(K{=}20\)`, `\(p{=}4\)` gives 1600+ coefficients!). Estimation uncertainty is severe
+
+--
+
+- **Bayesian Inference:** We place a prior on `\((A_1,\dots,A_p,\Sigma)\)` and combine it with the likelihood from data. The result is a posterior distribution for the coefficients. With a wisely chosen prior, even a large VAR can be estimated robustly, borrowing strength from prior beliefs.
+
+--
+
+- We focus on priors for the coefficients `\(A_\ell\)`. (Priors on `\(\Sigma\)` often use a simple form like an inverse-Wishart, or assume diagonal `\(\Sigma\)` for simplicity under Minnesota.)
+
+
+
+
+---
+# Minnesota Prior: Intuition
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- **Random Walk Belief:** The Minnesota prior assumes each variable `\(y_{i}\)` behaves like a random walk (especially suitable for macroeconomic aggregates). This implies a priori that variable `\(i\)`’s own first lag coefficient `\(\approx 1\)`, and other coefficients `\(\approx 0\)`.  
+
+--
+
+- **Prior Means:** Traditionally, `\(E[\text{coef}_{i,j,\ell}] = 0\)` for most coefficients, **except** `\(E[\text{coef}_{i,i,1}] = 1\)` for the own first lag (to allow for unit-root behavior). In practice, some implementations center all lag coefficients at 0, treating the random-walk as a soft tendency rather than exact mean 1.
+
+--
+
+- **Shrinkage Structure:** The Minnesota prior imposes **greater shrinkage on certain coefficients**:
+
+  - Coefficients on **longer lags** are more tightly shrunk to zero than short lags (decay with lag length).
+  
+  - **Cross-variable lags** (lag of variable `\(j\)` in equation `\(i\)` for `\(i\neq j\)`) are more tightly shrunk than own lags (lag of `\(i\)` in its own equation). 
+  
+  - Typically an uninformative (very loose) prior is placed on intercepts and any deterministic terms
+---
+# Minnesota Prior: Specification
+&lt;div style="font-size: 25px;"&gt;
+
+- Prior Variance Formula: For coefficient on variable `\(j\)`’s lag `\(\ell\)` in equation `\(i\)`:
+`$$\begin{cases} \frac{\lambda_1^2}{\ell^{\lambda_2}}, &amp; i=j \text{ (own lag)};\\[1ex] \frac{\lambda_1^2\,\lambda_3^2}{\ell^{\lambda_2}}, &amp; i\neq j \text{ (cross lag)}~, \end{cases}$$`
+
+- where `\(\lambda_1\)` controls overall tightness, `\(\lambda_2\)` controls lag decay, and `\(\lambda_3 &lt; 1\)` imposes extra shrinkage on cross-variable lags (Often this is further scaled by relative scale of variables to account for units).
+
+--
+
+- **Hyperparameters:** `\(\lambda_1\)` (overall tightness) is usually small (e.g. 0.1–0.2) to heavily shrink coefficients (as `\(\lambda_1 \to 0\)`, priors force coefficients to 0; large `\(\lambda_1\)` gives diffuse priors). 
+
+--
+
+- `\(\lambda_2\)` (lag decay) is often set to 1 or 2, meaning higher-order lags get `\(\frac{1}{\ell^{\lambda_2}}\)` much tighter priors.
+
+--
+
+- `\(\lambda_3\)` (cross-variable shrinkage) typically `\(\ll 1\)` (e.g. 0.2, so cross-lag coefficients have only 20% of the prior variance of own-lag coefficients).
+
+--
+
+- These hyperparameters can be chosen by rules of thumb or treated hierarchically and estimated from data.
+
+---
+# Minnesota Prior: Pros and Cons
+&lt;div style="font-size: 25px;"&gt;
+
+- Reduces overfitting by shrinking most coefficients towards zero.
+
+--
+
+- Often conjugate (or semi-conjugate) under assumptions (normal prior on coefficients, fixed diagonal `\(\Sigma\)`), so posterior computation is fast and analytically.
+
+--
+
+- Only a few intuitive hyperparameters (`\(\lambda\)`’s) which can be set to standard values (e.g. `\(\lambda_1 \approx0.2\)`, `\(\lambda_2=1\)`) that usually work well, or tuned to beliefs.
+
+
+--
+
+- **Cons:**
+  - Assumes all variables have similar dynamics (e.g. all behave like random walks), which may not hold in practice.
+  
+  - Can be too restrictive if some variables have very different dynamics (e.g. stationary vs. unit-root).
+  
+  - Shrinkage can lead to biased estimates if the true coefficients are far from the prior means.
+
+---
+# Beyond Minnesota: Global-Local Shrinkage
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Minnesota prior&lt;/span&gt; applies the same shrinkage level to all coefficients in a group (e.g. all cross-lags). 
+
+--
+
+- **Global-local shrinkage** allows different degrees of shrinkage for each coefficient, improving flexibility.
+
+--
+
+- The key idea: introduce a global parameter for overall shrinkage and a local parameter for each coefficient.
+
+--
+
+- Global-Local Structure: Each coefficient `\(\beta_{ij}\)` gets a prior with two levels
+  - a shared global shrinkage parameter (controls overall tightness/sparsity across all coefficients or a large subset),
+  
+  - an individual local shrinkage parameter, specific to `\(\beta_{ij}\)`, allowing some coefficients to be very tightly shrunk (if unimportant) while others can be relatively free (if the data deems them important).
+
+???
+
+- Spike-and-Slab vs. Continuous Shrinkage: One approach is spike-and-slab (e.g. Stochastic Search Variable Selection) which puts a mixture prior on each coefficient — a point-mass (spike at 0) with a certain probability and a diffuse distribution (slab) otherwise.
+
+- Global-local continuous shrinkage priors (like the Horseshoe or Normal-Gamma) achieve a similar effect without a discrete mixture their density is sharply peaked at zero (most coefficients a priori very small) but with heavy tails (allowing a few large coefficients if supported by data).
+
+
+---
+# Normal-Gamma (NG) Prior
+&lt;div style="font-size: 25px;"&gt;
+
+- The Normal-Gamma (NG) prior is a flexible global-local shrinkage prior that combines a normal distribution for the coefficients with a gamma distribution for their variances.
+
+--
+
+- The NG prior is defined as:
+
+- `$$\beta_{ij} \sim N(0, \tau^2 \sigma^2_{ij}), \quad \sigma^2_{ij} \sim \text{Gamma}(a, b)$$`
+
+- Where:
+  - `\(\beta_{ij}\)` is the coefficient for variable `\(i\)` at lag `\(j\)`.
+  - `\(\tau^2\)` is a global shrinkage parameter that controls the overall tightness of the prior.
+  - `\(\sigma^2_{ij}\)` is a local variance parameter for each coefficient, allowing for different degrees of shrinkage across coefficients.
+  - `\(a\)` and `\(b\)` are hyperparameters of the gamma distribution, controlling the shape and scale of the local variances.
+  
+- The NG prior allows for flexible shrinkage, where some coefficients can be very small (shrunk towards zero) while others can be larger, depending on the data.
+
+- The NG prior is particularly useful in high-dimensional settings where the number of coefficients is large, as it allows for adaptive shrinkage based on the data.
+
+---
+# Normal-Gamma (NG) Prior
+
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- The NG prior is conjugate, meaning that the posterior distribution of the coefficients given the data can be computed analytically.
+
+--
+
+- The posterior distribution of the coefficients under the NG prior is also a normal distribution, which allows for efficient sampling using Gibbs sampling or other MCMC methods.
+
+--
+
+- The NG prior can be combined with other priors, such as the Minnesota prior, to further improve estimation accuracy and control overfitting.
+
+--
+
+- The NG prior is particularly useful in large VAR models where the number of coefficients is large, as it allows for flexible shrinkage and improves estimation accuracy.
+
+--
+
+- The NG prior can also be used in conjunction with other Bayesian methods, such as empirical Bayes or hierarchical modeling, to further improve estimation accuracy and control overfitting.
+
+---
+# Minnesota-Type Normal-Gamma Prior
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Hybrid Prior: Recent work (Chan, 2021) combines the best of both worlds by embedding the NG prior into a Minnesota-style framework
+
+--
+
+- This allows for the intuitive shrinkage structure of Minnesota while retaining the flexibility of NG.
+
+--
+
+-  Each coefficient `\(\beta_{i,j,\ell}\)` has:
+
+  - a Minnesota variance scale `\(C_{i,j,\ell}\)` (as if it had a Minnesota prior, accounting for own vs cross and lag `\(\ell\)`),
+  
+  - its own local shrinkage `\(\psi_{i,j,\ell} \sim \Gamma(\nu_\psi,;\nu_\psi/2)\)`,
+  
+  - and separate global scales `\(\kappa_1\)` and `\(\kappa_2\)` for own-lag vs cross-lag coefficients respectively
+
+
+---
+# Minnesota-Type Normal-Gamma Prior
+&lt;div style="font-size: 25px;"&gt;
+
+- The prior becomes:
+
+`$$\beta_{i,j,\ell} \sim N\left(0, \frac{C_{i,j,\ell}}{\kappa_1^{\ell-1} + \kappa_2^{\ell-1}} \psi_{i,j,\ell}\right)$$`
+
+- where `\(\kappa_1\)` controls shrinkage for own lags and `\(\kappa_2\)` for cross lags.
+
+- The local `\(\psi_{i,j,\ell}\)` allows each coefficient to adaptively shrink based on its importance, while the global `\(\kappa_{g(i,j)}\)` controls overall tightness.
+
+- Essentially, we still give each coefficient a Minnesota-like prior variance `\(C_{i,j,\ell}\)`, but instead of a fixed normal prior, we make it an NG prior (with local `\(\psi\)` and appropriate global scale `\(\kappa_{g(i,j)}\)`).
+
+- This allows for flexible shrinkage while still imposing the Minnesota structure, enabling better estimation in large VARs.
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 18px;"&gt;
+
+
+
+``` r
+library(tsaccessories)
+library(Bayesiantvpvars)
+library(dplyr)
+library(lubridate)
+library(zoo)
+library(readxl)
+
+data&lt;-read_excel("datawork/data.xlsx", sheet = "Sheet1")
+df &lt;- tsconvert(data, start = c(1959, 1), period = "quarterly")
+
+vars &lt;- c("inflation", "unemployment_rate", "interest_rate")
+# new data frame with just those columns
+df_sel &lt;- df[ , vars, drop = FALSE]
+str(df_sel)
+# Keep Date + variables, drop rows with NA in selected vars only
+tmp &lt;- df %&gt;%
+  transmute(Date = as.Date(Date), across(all_of(vars), as.numeric)) %&gt;%
+  filter(if_all(all_of(vars), ~ !is.na(.)))
+
+# if Date wasn’t a true Date, try parsing (remove this if already Date)
+if (!inherits(tmp$Date, "Date")) {
+  tmp$Date &lt;- suppressWarnings(lubridate::ymd(df$Date))[complete.cases(df[vars])]
+}
+
+# sort and handle any duplicate dates (here: average duplicates)
+tmp &lt;- tmp %&gt;% arrange(Date) %&gt;%
+  group_by(Date) %&gt;% summarise(across(all_of(vars), ~ mean(.x, na.rm = TRUE)), .groups = "drop")
+
+X &lt;- as.matrix(tmp[, vars])
+Z &lt;- zoo::zoo(X, order.by = tmp$Date)
+p &lt;- 2
+tau_auto &lt;- pick_tau(nrow(X), p) 
+
+fit &lt;- obtvpvar(
+  X, p = p, tau = tau_auto,
+  nrep = 6000, nburn = 1000, thinfac = 5, verbose_every = 5000
+)
+
+irf_sel &lt;- obtvpvar_irfchoose(
+  fit,
+  impulses  = c("inflation", "unemployment_rate", "interest_rate"),          # names (case-insensitive, space/underscore-insensitive)
+  responses = c("inflation", "unemployment_rate", "interest_rate"),
+  nhor = 16
+)
+p_irfs_sel &lt;- plot_irfs_grid_selected(irf_sel, free_y = TRUE)
+print(p_irfs_sel)
+
+# 5) FEVD at a chosen time &amp; horizon via fevd_at_t() -----------
+fevd_now &lt;- obtvpvar_fevd(fit, H = 12)     # median shares (with p05/p95)
+# Paper-style stacked bar plot
+p_fevd_now &lt;- obtvpvarplot_fevd(fevd_now, label_size = 2.8)
+print(p_fevd_now)
+
+# 6) Time-varying FEVD for selected responses ------------------
+#    Uses fevd_overtime_selected() which internally uses .resolve_pos()
+fevd_tv &lt;- obtvpvarfevdtm(
+  fit,
+  responses = c("inflation", "unemployment_rate"),  # select 2 responses to illustrate
+  H = 12,
+  t_start = 10,
+  t_end   = NULL              # defaults to last available t
+)
+
+# Returns a named list of ggplots (one per selected response)
+fevd_tv_plots &lt;- obtvpvarplotfevdtm(fevd_tv)
+# Print them (patchwork or loop)
+print(fevd_tv_plots)
+
+
+# 7) Connectedness using TVP-VAR engine ------------------------
+#    End-to-end: estimate time-domain connectedness &amp; grab plots
+
+# then run connectedness
+conn &lt;- connectedness(
+  X = Z, p = p, H = 10, kappa = c(0.99, 0.99), corrected_tci = TRUE
+)
+```
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+&lt;img src="img/tvpirf1.png" width="1000"/&gt;
+
+
+- Inflation persistence:Positive and persistent, peaking around horizon 2–3 and then slowly declining. Confirms inflation inertia (Strong, self-driven)
+
+- Policy rule: Interest rate reacts positively to inflation and negatively to unemployment → consistent with a Taylor-type rule.
+]
+
+
+.pull-left[
+
+- Unemployment response: Positive → interest rate hikes increase unemployment over time, reflecting a demand-side trade-off.
+
+- Policy trade-off: Monetary tightening lowers inflation but raises unemployment.
+
+- Phillips Curve: Negative relationship between unemployment and inflation confirmed.
+
+- Shock persistence: Unemployment shocks are the most persistent.
+
+]
+
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+&lt;img src="img/tmirf1.png" width="1000"/&gt;
+
+
+- The IRFs of unemployment to an interest rate shock reveal clear time variation. During the pre-Volcker period (1969), interest rate hikes raised unemployment persistently, peaking after about three years.
+]
+
+
+.pull-left[
+
+- In the early 1980s (1983Q4), the effect was strongest and most prolonged, consistent with the costs of the Volcker disinflation.
+
+- By the late 1990s, the response remained significant but less persistent, reflecting improved policy credibility.
+
+- In contrast, the post-crisis period (2012) shows a much weaker and shorter-lived effect, consistent with diminished monetary transmission at the zero lower bound.
+
+- These results underscore the evolving trade-offs between monetary tightening and labor market outcomes across regimes.
+
+]
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 26px;"&gt;
+
+.pull-left[
+&lt;img src="img/tpvfevd.png" width="1000"/&gt;
+
+
+- Inflation is highly self-driven with limited influence from monetary policy or labor market shocks at this horizon.
+]
+
+
+.pull-left[
+
+- Interest rates are partly policy autonomous, but unemployment plays a large role in driving interest rate dynamics — consistent with central banks reacting to labor market conditions (countercyclical policy). Inflation explains only a modest share.
+
+- Unemployment is primarily determined by its own innovations, but inflation explains a non-trivial portion (~20%), consistent with a Phillips-curve style channel.
+
+]
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+&lt;img src="img/TVPFEVD.png" width="1000"/&gt;
+
+- Unemployment rigidity: ~75% of its variance explained by own shocks → labor market is mostly self-driven.
+
+- Inflation–unemployment link: ~20% explained by inflation shocks → evidence of a persistent Phillips curve effect.
+
+
+
+]
+
+
+.pull-left[
+
+- Weak monetary policy channel: Interest rate shocks explain very little (2–4%), showing that policy shocks matter less than inflationary dynamics for unemployment.
+- The time-varying FEVD at horizon 12 shows that unemployment dynamics are overwhelmingly explained by own shocks (≈75%), with inflation shocks accounting for ≈20% and interest rate shocks contributing only marginally (≈2–4%). 
+- Importantly, these shares remain stable across the sample, underscoring the structural persistence of unemployment in the economy. 
+- This suggests that while inflationary dynamics exert some influence on labor market fluctuations, the unemployment process is largely self-driven, and the role of monetary policy shocks is limited.
+]
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+
+### Total Connectedness Index
+&lt;img src="img/cn1.png" width="600"/&gt;
+
+- The Total Connectedness Index (TCI) fluctuates between 35% and 55% over the sample period, indicating a moderate-to-high level of shock transmission across variables.
+
+
+
+
+]
+
+
+.pull-left[
+- Connectedness was relatively low in the 1960s (≈30–35%) but increased significantly during the late 1970s and early 1980s, coinciding with global oil shocks and disinflationary policies.
+
+- Since the 1990s, the index has remained persistently high (≈45–50%), reflecting greater macro-financial integration and stronger interdependence of shocks. 
+
+- This pattern highlights that the economy has become progressively more interconnected, with policy and macro shocks exerting broader systemic effects.
+
+]
+
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+
+### Directional TO others
+
+&lt;img src="img/cn2.png" width="600"/&gt;
+
+- The directional connectedness analysis reveals that inflation was the dominant transmitter of shocks in the 1970s, reflecting supply-side shocks and inflationary spirals.
+
+
+
+
+]
+
+
+.pull-left[
+- During the 1980s, monetary policy (interest rates) became the primary transmitter, consistent with the Volcker disinflation.
+
+- From the 1990s onwards, unemployment shocks gained prominence as transmitters, indicating that labor market dynamics have become central in propagating macroeconomic shocks. 
+
+- This shift underscores the evolving nature of systemic risk transmission in line with structural reforms, monetary policy credibility, and labor market rigidities.
+
+]
+
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 22px;"&gt;
+
+.pull-left[
+
+### The directional FROM others
+
+&lt;img src="img/cn3.png" width="600"/&gt;
+
+- The decomposition reveals that interest rates are persistently the most reactive variable, absorbing shocks from inflation and unemployment in line with systematic policy responses.
+
+
+
+
+]
+
+
+.pull-left[
+
+- Inflation, initially self-driven, became highly influenced by external shocks during the 1970s–1980s crises before stabilizing under credible monetary regimes.
+
+- Unemployment remains largely self-driven but absorbs some shocks during recessions, especially in the early 1980s.
+
+- Together with the ‘TO others’ results, this highlights an evolving structure of macroeconomic spillovers: inflation as a dominant transmitter in the 1970s, interest rates as the main responder, and unemployment increasingly acting as a shock transmitter in recent decades.
+
+]
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 20px;"&gt;
+
+.pull-left[
+
+### Net Connectedness
+&lt;img src="img/cn4.png" width="600"/&gt;
+
+- The net connectedness results highlight regime shifts in systemic shock transmission.
+
+
+
+
+]
+
+
+.pull-left[
+
+- Inflation was the dominant transmitter in the 1960s–1970s, but became a net receiver during the Volcker disinflation of the early 1980s, reflecting the dominance of monetary tightening.
+- Interest rates appear persistently as net receivers, consistent with their role as reactive policy instruments, except during extraordinary disinflationary episodes when they briefly transmit shocks.
+- Unemployment, by contrast, emerges as a persistent net transmitter from the 1980s onwards, suggesting that labor market shocks play a central role in driving macroeconomic connectedness in the later period.
+- This dynamic underscores the evolving nature of systemic risk transmission in line with structural reforms, monetary policy credibility, and labor market rigidities.
+
+]
+
+
+
+
+
+
+---
+# Example of TVP-BVAR
+&lt;div style="font-size: 20px;"&gt;
+
+.pull-left[
+
+### Connectedness Network Graph
+&lt;img src="img/cn5.png" width="600"/&gt;
+
+
+
+
+]
+
+
+.pull-left[
+
+- The connectedness network reveals that unemployment is the dominant transmitter of shocks, with strong spillovers to both interest rates and inflation.
+
+- Interest rates serve as a conduit, absorbing shocks from unemployment and transmitting them to inflation, consistent with a Taylor-rule framework where policy responds to labor market conditions and influences price stability. 
+
+- Inflation, by contrast, appears as a net receiver of shocks, reflecting its dependence on labor market pressures and monetary policy actions rather than acting as a primary source of systemic spillovers.
+]
+
+---
+# From VAR to SVAR 
+&lt;div style="font-size: 30px;"&gt;
+- A standard VAR can be written in reduced form as:
+`$$y_t = c + A_1 y_{t-1} + A_2 y_{t-2} + \cdots + A_p y_{t-p} + u_t, \quad u_t \sim N(0, \Sigma)$$`
+
+- where `\(y_t\)` is a vector of endogenous variables, `\(c\)` is a vector of intercepts, `\(A_i\)` are coefficient matrices, and `\(u_t\)` are reduced-form errors with covariance matrix `\(\Sigma\)`.
+
+--
+
+- However, the reduced-form errors `\(u_t\)` are generally correlated across equations, making it difficult to interpret the shocks economically.
+
+--
+
+- To obtain economically meaningful shocks, we need to transform the reduced-form errors into structural shocks that are uncorrelated and have clear interpretations.
+
+--
+
+- This is done by specifying a structural VAR (SVAR) model, which imposes additional restrictions to identify the structural shocks.
+
+---
+# From VAR to SVAR 
+&lt;div style="font-size: 24px;"&gt;
+
+- A common way to represent the SVAR is:
+
+--
+
+ `$$A_0 y_t = c + A_1 y_{t-1} + A_2 y_{t-2} + \cdots + A_p y_{t-p} + \varepsilon_t, \quad \varepsilon_t \sim N(0, I)$$`
+
+- where `\(A_0\)` is a contemporaneous impact matrix that relates the structural shocks `\(\varepsilon_t\)` to the observed variables `\(y_t\)`.
+
+- The structural shocks `\(\varepsilon_t\)` are assumed to be uncorrelated with each other and have unit variance.
+
+--
+
+- The relationship between the reduced-form errors `\(u_t\)` and the structural shocks `\(\varepsilon_t\)` is given by:
+
+so that **reduced‑form errors** and **structural shocks** are linked by
+`$$e_t \equiv A_0^{-1}\varepsilon_t\,,\qquad \Sigma = A_0^{-1} (A_0^{-1})' \,.$$`
+
+We call `\(B_0 \equiv A_0^{-1}\)` the **impact matrix**. Identifying the model = learning `\(B_0\)` (up to signs/labels).
+
+---
+# From VAR to SVAR 
+&lt;div style="font-size: 30px;"&gt;
+
+
+
+- The covariance matrix of the reduced-form errors `\(\Sigma\)` is related to the impact matrix `\(A_0\)` by:
+
+`$$\Sigma = A_0^{-1} (A_0^{-1})'$$`
+
+- To identify the structural shocks, we need to impose restrictions on `\(A_0\)`.
+
+- Common identification strategies include:
+
+  - Short-run restrictions (e.g., Cholesky decomposition)
+  
+  - Long-run restrictions (e.g., Blanchard-Quah)
+  
+  - Sign restrictions
+  
+
+
+---
+# Identification in SVARs
+
+- Identification is crucial in SVARs to obtain economically meaningful shocks.
+
+- Without identification, the structural shocks cannot be uniquely determined from the reduced-form errors.
+
+- The choice of identification strategy depends on the economic theory and context of the analysis.
+
+- Different identification strategies impose different types of restrictions on the impact matrix `\(A_0\)`.
+
+- The chosen restrictions should be justified based on economic theory and empirical evidence.
+
+- The validity of the identification strategy can be assessed through robustness checks and sensitivity analyses.
+
+---
+# Bayesian reduced‑form (conjugate) setup
+
+Let `\(T\)` be sample size and define `\(X\)` with a column of ones and lagged `\(y_t\)`. A standard conjugate prior is **Matrix‑Normal–Inverse‑Wishart (MNIW)**:
+
+`$$\Sigma \sim \mathcal{IW}(\nu_0,S_0), \qquad
+\Phi \mid \Sigma \sim \mathcal{MN}(\Phi_0,\, \Sigma,\, V_0)\,.$$`
+
+The **posterior** is also MNIW:
+`$$V_T = (V_0^{-1} + X'X)^{-1},\qquad
+\Phi_T = V_T\big(V_0^{-1}\Phi_0 + X'Y\big)\,,$$`
+
+`$$\nu_T = \nu_0 + T,\qquad
+S_T = S_0 + (Y - X\Phi_T)'(Y - X\Phi_T) + (\Phi_T-\Phi_0)'V_0^{-1}(\Phi_T-\Phi_0)\,.$$`
+
+**Sampling** one draw from the reduced‑form posterior:
+1. Draw `\(\Sigma^{(s)} \sim \mathcal{IW}(\nu_T,S_T)\)`.
+2. Draw `\(\Phi^{(s)} \sim \mathcal{MN}(\Phi_T,\, \Sigma^{(s)},\, V_T)\)`.
+
+Minnesota‑type priors can be approximated within this conjugate family via suitable `\(\Phi_0,V_0\)` choices.
+
+---
+# From reduced‑form posterior to **structural** posterior
+
+Let the Cholesky of `\(\Sigma^{(s)}\)` be `\(\Sigma^{(s)} = P P'\)` with `\(P\)` lower‑triangular. Any **orthonormal** matrix `\(Q\)` (`\(Q'Q=I\)`) generates a **candidate impact matrix**
+
+`$$B_0^{(s)} = P\,Q \quad\Rightarrow\quad \Sigma^{(s)} = B_0^{(s)} (B_0^{(s)})' \,.$$`
+
+&gt; **Key Bayesian device (RRWZ 2010):** draw `\(Q\)` from the **Haar** measure (e.g., QR of i.i.d. `\(\mathcal N(0,1)\)` matrix, with sign fix), compute implied **structural IRFs**, and **accept** `\(Q\)` iff the chosen identification **restrictions** hold.
+
+Given `\((\Phi^{(s)}, B_0^{(s)})\)`, **structural MA** and IRFs follow from the reduced‑form MA `\(D_h\)`:
+
+`$$y_t = \sum_{h=0}^{\infty} D_h e_{t-h} = \sum_{h=0}^{\infty} C_h \varepsilon_{t-h},
+\qquad C_h = D_h B_0 \,,$$`
+
+with `\(D_0=I\)`, and for `\(h\ge 1\)`, `\(D_h = \sum_{j=1}^{\min(p,h)} A_j D_{h-j}\)`.
+
+---
+#Identification by **restrictions on `\(B_0\)` (impact)** — “zero/recursive”
+
+**Recursive (short‑run) scheme** fixes a lower‑triangular `\(A_0\)` with ones on the diagonal, hence a lower‑triangular `\(B_0=A_0^{-1}\)`.
+Example for `\((\pi_t, y_t, i_t)\)` ordered as prices, output, interest rate:
+`$$A_0 =
+\begin{bmatrix}
+1 &amp; 0 &amp; 0 \\
+a_{21} &amp; 1 &amp; 0 \\
+a_{31} &amp; a_{32} &amp; 1
+\end{bmatrix},
+\qquad
+B_0 = A_0^{-1}\,.$$`
+
+**Economic reading:** `\(i_t\)` can react within‑period to `\(\pi_t,y_t\)`, but not vice‑versa. In Bayesian inference, keep only `\(Q\)` that reproduce this zero pattern for `\(A_0=B_0^{-1}\)`.
+
+**General impact zero/calibration:** Impose `\((B_0)_{ij}=0\)` for some `\((i,j)\)`, or fix scales `\((B_0)_{jj}&gt;0\)`. These are **linear** constraints in `\(A_0\)` elements.
+
+---
+#Identification by **sign restrictions**
+
+Specify signs for selected **impulse responses** over horizons `\(h \in \mathcal H\)`. Example (**contractionary monetary shock**, variable order `\((\pi, y, i)\)`):
+ `$$\text{At } h=0:\quad \Delta i \;&gt;\; 0$$`
+ `$$h \in \{1,\ldots,4\}:\quad \Delta y \;\le\; 0$$`
+ `$$h \in \{4,\ldots,12\}:\quad \Delta \pi \;\le\; 0$$`
+
+Algorithm (Uhlig 2005; Rubio‑Ramírez, Waggoner &amp; Zha 2010):
+1. Draw `\((\Phi^{(s)},\Sigma^{(s)})\)` from the reduced‑form posterior.
+2. Factor `\(\Sigma^{(s)}=PP'\)`; draw `\(Q\)` orthonormal (Haar).
+3. Form `\(B_0^{(s)}=PQ\)` and IRFs `\(C_h^{(s)}=D_h^{(s)}B_0^{(s)}\)`.
+4. **Accept** if all sign constraints hold (otherwise redraw `\(Q\)`).
+
+This yields **posterior sets** of admissible IRFs/shocks; report medians and credible bands over accepted draws.
+
+---
+#Identification by **long‑run restrictions**
+
+Define the **long‑run impact matrix**
+
+`$$C(1) \equiv \sum_{h=0}^{\infty} C_h = \left(\sum_{h=0}^{\infty} D_h\right) B_0 \,.$$`
+
+**Blanchard–Quah (1989) example (two‑variable case):** demand shocks have **zero long‑run** effect on the level of output,
+$$
+\big[C(1)\big]_{y,\;\varepsilon^{\text{demand}}} = 0 \,,
+$$
+while supply shocks may have permanent effects. In practice, enforce linear restrictions on `\(C(1)\)` using the reduced‑form `\(D_h\)` from each posterior draw.
+
+---
+#  Worked patterns you can reuse
+
+**A) Recursive monetary policy (impact zeros on `\(A_0\)`)**  
+Order `\((\pi, y, i)\)`, constrain
+`$$A_0 =
+\begin{bmatrix}
+1 &amp; 0 &amp; 0\\
+* &amp; 1 &amp; 0\\
+* &amp; * &amp; 1
+\end{bmatrix}
+\quad\Longleftrightarrow\quad
+(B_0)_{12}=(B_0)_{13}=(B_0)_{23}=0.$$`
+
+**B) Fiscal SVAR (impact restrictions on `\(B_0\)`)**  
+Order `\((\text{tax},\text{spend},y)\)`, constrain contemporaneous tax/spend elasticities via
+`$$(B_0)_{1,3} = \kappa_\tau,\qquad (B_0)_{2,3} = 0,\qquad (B_0)_{3,1} = 0,$$`
+with `\(\kappa_\tau\)` calibrated from elasticities; others free (orthogonality maintained).
+
+---
+#  Worked patterns you can reuse
+
+**C) Monetary sign identification**  
+For shock `\(j=\varepsilon^{\text{MP}}\)`, require
+`$$\{C_h\}_{i,j} \in \begin{cases}
+(+, \; \text{at } i=i_t,\, h=0),\\
+(-, \; \text{at } i=y_t,\, h=1\!:\!4),\\
+(-, \; \text{at } i=\pi_t,\, h=4\!:\!12).
+\end{cases}$$`
+
+**D) Long‑run BQ (two‑variable)**  
+With `\(y_t = \Delta \log Y_t\)`, impose
+`$$\sum_{h=0}^\infty (C_h)_{y,\; \varepsilon^{\text{demand}}} = 0 \,.$$`
+
+
+---
+# Posterior computation, full B‑SVAR sampler
+
+1. **Reduced‑form draw** `\((\Phi^{(s)},\Sigma^{(s)}) \sim \text{MNIW posterior}\)`.
+
+2. **Shock rotation**: `\(\Sigma^{(s)}=PP'\)`, draw `\(Q \sim \text{Haar}\)`, set `\(B_0^{(s)}=PQ\)`.
+
+3. **Check restrictions** (impact zeros/values, signs over `\(h\in\mathcal H\)`, long‑run zeros on `\(C(1)\)`).
+
+4. **Accept** `\((\Phi^{(s)},B_0^{(s)})\)` if constraints hold; else go back to 2.
+
+5. Compute IRFs `\(C_h^{(s)}\)`, FEVDs, and historical decompositions.
+
+6. Summarize across accepted draws: medians and `\(68\%/90\%\)` credible sets.
+
+
+
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+### Short-Run Restrictions
+
+``` r
+library(bsvars)
+library(readxl)
+library(tsaccessories)
+library(dplyr)
+dat&lt;-read_excel("datawork/data.xlsx", sheet = "Sheet1")
+set.seed(123) #Fixes R’s random number generator seed so MCMC sampling and other random draws are reproducible across runs.
+dat &lt;- tsconvert(dat, start = c(1959, 1), period = "quarterly")
+#Keep only numeric series
+is_num &lt;- vapply(dat, is.numeric, logical(1))
+#Checks each column with is.numeric.
+if (!all(is_num)) {
+  message("Dropping non-numeric columns: ",
+          paste(names(dat)[!is_num], collapse = ", "))
+  dat &lt;- dat[ , is_num, drop = FALSE]
+}
+
+dat &lt;- dat[, c("inflation", "unemployment_rate", "interest_rate"), drop = FALSE]
+
+#Handle missing data and build T×N matrix
+# Remove any rows with missing values in any remaining column. 
+
+dat &lt;- stats::na.omit(dat)
+Y &lt;- as.matrix(dat)  # Keep as T x N
+
+# Safety: auto-correct if the file was N×T
+
+if (ncol(Y) &gt; nrow(Y)) {
+  message("Detected more columns than rows; assuming N x T and transposing to T x N.")
+  Y &lt;- t(Y)
+}
+```
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+Short-Run Restrictions
+
+.pull-left[
+
+``` r
+#Dimension printouts and sanity checks
+#Store the number of observations and variables for later checks/messages.
+T_ &lt;- nrow(Y); N_ &lt;- ncol(Y)
+cat(sprintf("Detected T = %d observations, N = %d variables\n", T_, N_))
+```
+
+```
+## Detected T = 215 observations, N = 3 variables
+```
+
+``` r
+#Specify the BSVAR
+# Build a model specification object with endogenous data Y
+# p = 2 sets the autoregressive lag length to 2.
+# With no extra identification block supplied, bsvars uses its default structural identification: recursive (Cholesky) on the variable order in Y.
+
+# MCMC estimation (single pass) #Set the number of MCMC iterations to run and mark it as an integer with L.
+```
+]
+
+.pull-right[
+
+``` r
+bsvar &lt;- specify_bsvar$new(
+  Y,    # T x N
+  p = 2 # lag order
+)
+```
+
+```
+## The identification is set to the default option of lower-triangular structural matrix.
+```
+
+``` r
+S_total &lt;- 1500L    # toy; increase massively in real work
+```
+]
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+### Short-Run Restrictions
+
+``` r
+#Set the number of MCMC iterations to run and mark it as an integer with L. This is only a small demo value—use thousands for applied work.
+post_bsvar&lt;- estimate(bsvar, S = S_total)
+#Post-estimation objects
+irf_bsvar  &lt;- compute_impulse_responses(post_bsvar, horizon = 12L)
+fevd_bsvar &lt;- compute_variance_decompositions(post_bsvar, horizon = 12L)
+fitted_bsvar&lt;- compute_fitted_values(post_bsvar)
+hd_bsvar&lt;- compute_historical_decompositions(post_bsvar, show_progress = TRUE)
+sigma_bsvar&lt;- compute_conditional_sd(post_bsvar)
+print(summary(post_bsvar))
+plot(irf_bsvar)
+plot(fevd_bsvar)
+plot(hd_bsvar)
+plot(sigma_bsvar)
+```
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/bsvarirf.png" width="800"/&gt;
+
+- An inflationary shock (Shock 1) raises both inflation and unemployment, prompting tighter monetary policy — suggestive of stagflationary pressures.
+]
+
+.pull-right[
+- A disinflationary shock (Shock 2) reduces inflation persistently but at the cost of higher unemployment, with interest rates falling as policy accommodates.
+
+- A monetary easing shock (Shock 3) lowers interest rates persistently but has muted effects on inflation and unemployment, pointing to limited real sector responsiveness to policy interventions.
+
+- These results underline the trade-offs faced by monetary authorities and the asymmetric effectiveness of different structural shocks.
+
+]
+
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/bsvarfevd.png" width="800"/&gt;
+
+- Inflation variance is dominated by its own inflationary shock, consistent with persistent cost-push or demand-pull disturbances.
+]
+
+.pull-right[
+- Unemployment is almost entirely explained by labor market shocks, reflecting rigidities and persistence in employment dynamics.
+
+- Interest rate variance, by contrast, is distributed across all three shocks, with monetary policy shocks dominating at short horizons, while inflation and unemployment shocks gain importance at longer horizons.
+
+- This highlights the endogenous and reactive nature of monetary policy within the structural system.
+
+]
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/bshdirf.png" width="800"/&gt;
+
+- The historical decomposition results from the BSVAR indicate that inflation has been largely driven by supply-side shocks, while unemployment dynamics are almost entirely explained by persistent labor market shocks.
+]
+
+.pull-right[
+- Monetary policy shocks, while not central to explaining inflation or unemployment, dominate key episodes of interest rate fluctuations, underscoring the endogenous and reactive nature of policy interventions.
+
+- These findings reinforce the structural segmentation revealed by the FEVD, showing that inflation and unemployment are primarily self-driven, whereas interest rates reflect a mixture of autonomous policy actions and systematic responses to real-side shocks.
+
+]
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 18px;"&gt;
+### Sign Restrictions 
+
+
+``` r
+library(bsvarSIGNs)
+library(readxl)
+dat &lt;- read_excel("datawork/data.xlsx")
+set.seed(123) #Fixes R’s random number generator seed so MCMC sampling and other random draws are reproducible across runs.
+
+is_num &lt;- vapply(dat, is.numeric, logical(1))
+if (!all(is_num)) dat &lt;- dat[, is_num, drop = FALSE]
+dat &lt;- stats::na.omit(dat)
+
+# Optional: enforce canonical order if present
+want &lt;- c("inflation","unemployment_rate","interest_rate")
+if (all(want %in% names(dat))) dat &lt;- dat[, want]
+
+Y  &lt;- as.matrix(dat)
+T_ &lt;- nrow(Y); N_ &lt;- ncol(Y)
+stopifnot(T_ &gt; N_, T_ &gt;= 20)
+
+
+# --- VAR &amp; SR settings ---
+p      &lt;- 2L               # &lt;&lt; lag order = 2
+H_irf  &lt;- 12L              # IRF horizons to plot
+# Keep SR horizons modest for stability/acceptance
+H_sgn  &lt;- 2L               # impose signs at h = 0..1 (impact + 1 period)
+
+
+# --- Sign restrictions array: [variables x shocks x horizons] ---
+# Variables in rows: 1=inflation, 2=unemployment, 3=interest_rate
+# Shocks in columns: 1=Demand, 2=Supply (positive), 3=Monetary (tightening)
+sign_irf &lt;- array(NA_integer_, dim = c(N_, N_, H_sgn))
+
+
+# Demand: π +, u −, i +  (Taylor + Okun) at h = 0..1
+for (s in 1:H_sgn) {
+  sign_irf[1, 1, s] &lt;- +1
+  sign_irf[2, 1, s] &lt;- -1
+  sign_irf[3, 1, s] &lt;- +1
+}
+
+# Positive Supply: π −, u −, i − at h = 0..1
+for (s in 1:H_sgn) {
+  sign_irf[1, 2, s] &lt;- -1
+  sign_irf[2, 2, s] &lt;- -1
+  sign_irf[3, 2, s] &lt;- -1
+}
+
+# Monetary tightening: i + on impact; π −, u + over 0..1
+sign_irf[3, 3, 1] &lt;- +1      # i at h=0
+for (s in 1:H_sgn) {
+  sign_irf[1, 3, s] &lt;- -1    # π falls
+  sign_irf[2, 3, s] &lt;- +1    # u rises
+}
+
+# --- Specify SR-BSVAR ---
+spec &lt;- specify_bsvarSIGN$new(
+  data      = Y,
+  p         = p,
+  sign_irf  = sign_irf,
+  max_tries = 5000L
+)
+
+
+# ================== PASS A: IRF/FEVD from larger posterior ==================
+post_A &lt;- estimate(spec, S = 4000L, thin = 2L)  # ~2000 kept; adjust as you like
+
+irf  &lt;- compute_impulse_responses(post_A, horizon = H_irf)
+fevd &lt;- compute_variance_decompositions(post_A, horizon = H_irf)
+
+# Save and free memory before HD
+saveRDS(list(irf=irf, fevd=fevd), file = "sr_irf_fevd.rds")
+rm(irf, fevd, post_A); gc()
+
+# ================== PASS B: HD from a smaller posterior =====================
+# Force single-threaded math to avoid native crashes (OpenMP/BLAS)
+if (requireNamespace("RhpcBLASctl", quietly = TRUE)) {
+  RhpcBLASctl::blas_set_num_threads(1L)
+  RhpcBLASctl::omp_set_num_threads(1L)
+}
+Sys.setenv(
+  OMP_NUM_THREADS           = "1",
+  OPENBLAS_NUM_THREADS      = "1",
+  MKL_NUM_THREADS           = "1",
+  VECLIB_MAXIMUM_THREADS    = "1",
+  RCPP_PARALLEL_NUM_THREADS = "1"
+)
+
+post_B &lt;- estimate(spec, S = 1200L, thin = 2L)  # smaller kept sample (stable for HD)
+
+# Try HD; if anything goes wrong, fall back to an even smaller run
+hd &lt;- try(compute_historical_decompositions(post_B), silent = TRUE)
+if (inherits(hd, "try-error")) {
+  rm(post_B); gc()
+  post_B &lt;- estimate(spec, S = 800L, thin = 2L)
+  hd &lt;- compute_historical_decompositions(post_B)
+}
+
+saveRDS(hd, file = "sr_hd.rds")
+
+# --- Plots (optional) ---
+# Reload IRF/FEVD and plot, then plot HD
+obj &lt;- readRDS("sr_irf_fevd.rds")
+plot(obj$irf,  probability = 0.68)
+plot(obj$fevd, probability = 0.68)
+plot(hd)
+```
+
+
+
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 24px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/sign1.png" width="800"/&gt;
+
+- Demand shocks increase inflation and interest rates while reducing unemployment, consistent with the Taylor rule and Okun’s law.
+
+]
+
+.pull-right[
+
+- Positive supply shocks reduce inflation and unemployment while allowing for lower interest rates, consistent with productivity-driven expansions.
+
+- Monetary tightening shocks produce contractionary effects, lowering inflation at the cost of higher unemployment. 
+
+- These results highlight the importance of distinguishing between demand, supply, and policy shocks when analyzing macroeconomic fluctuations.
+
+]
+???
+- Demand Shock
+  - Inflation (π) ↑
+  - Unemployment (u) ↓
+  - Interest rate (i) ↑
+- (reflecting Taylor rule + Okun’s law).
+- Positive Supply Shock
+  - Inflation (π) ↓
+  - Unemployment (u) ↓
+  - Interest rate (i) ↓
+- (expansionary supply, consistent with productivity gains).
+- Monetary Tightening Shock
+  - Interest rate (i) ↑ on impact
+  - Inflation (π) ↓
+  - Unemployment (u) ↑
+(standard contractionary monetary policy).
+
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 24px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/sign2.png" width="1900"/&gt;
+
+
+]
+
+.pull-right[
+- The FEVD results indicate that demand shocks are the dominant drivers of macroeconomic fluctuations, explaining the majority of the variance in inflation, unemployment, and interest rates. 
+
+- Supply shocks have short-lived effects, particularly on inflation, while monetary tightening shocks play only a modest role, consistent with the view that interest rate dynamics largely reflect endogenous policy responses to demand conditions rather than independent monetary disturbances.
+
+]
+
+
+---
+# Example for Bayesian SVAR
+&lt;div style="font-size: 23px;"&gt;
+
+.pull-left[
+
+&lt;img src="img/sign3.png" width="1900"/&gt;
+
+
+]
+
+.pull-right[
+- The historical decomposition confirms that demand shocks were the predominant drivers of macroeconomic fluctuations across the sample, accounting for the bulk of the dynamics in inflation, unemployment, and interest rates. 
+
+- Supply shocks contributed episodically, consistent with energy or cost-push disturbances, while monetary policy shocks played a relatively modest role, emerging mainly during tightening episodes. 
+
+- These results suggest that macroeconomic volatility was largely demand-driven, with policy reacting endogenously rather than serving as an independent destabilizing force.
+
+]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+  "highlightStyle": "solarized-light",
+  "highlightLanguage": ["r", "css", "yaml"],
+  "highlightLines": true,
+  "countIncrementalSlides": false,
+  "ratio": "16:9",
+  "slideNumberFormat": "<div class=\"slide-number\" style=\"position: absolute; bottom: 1em; right: 2em; font-size: 0.9em; color: #999;\">\n  %current% / %total%\n</div>"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
