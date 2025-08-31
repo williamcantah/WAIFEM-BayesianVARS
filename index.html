@@ -4,7 +4,7 @@
     <title>Econometric Modelling Experts Development Programme - Module III</title>
     <meta charset="utf-8" />
     <meta name="author" content="William Godfred Cantah (Ph.D)" />
-    <meta name="date" content="2025-08-29" />
+    <meta name="date" content="2025-08-30" />
     <script src="libs/header-attrs-2.29/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="libs/panelset-0.3.0/panelset.css" rel="stylesheet" />
@@ -347,6 +347,82 @@ where
 - It is often implemented in Bayesian VAR software packages, allowing researchers to easily apply it to their data without needing to manually specify the prior distributions for each coefficient.
 
 ---
+# Minnesota Prior: Intuition
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- **Random Walk Belief:** The Minnesota prior assumes each variable `\(y_{i}\)` behaves like a random walk (especially suitable for macroeconomic aggregates). This implies a priori that variable `\(i\)`’s own first lag coefficient `\(\approx 1\)`, and other coefficients `\(\approx 0\)`.  
+
+--
+
+- **Prior Means:** Traditionally, `\(E[\text{coef}_{i,j,\ell}] = 0\)` for most coefficients, **except** `\(E[\text{coef}_{i,i,1}] = 1\)` for the own first lag (to allow for unit-root behavior). In practice, some implementations center all lag coefficients at 0, treating the random-walk as a soft tendency rather than exact mean 1.
+
+--
+
+- **Shrinkage Structure:** The Minnesota prior imposes **greater shrinkage on certain coefficients**:
+
+  - Coefficients on **longer lags** are more tightly shrunk to zero than short lags (decay with lag length).
+  
+  - **Cross-variable lags** (lag of variable `\(j\)` in equation `\(i\)` for `\(i\neq j\)`) are more tightly shrunk than own lags (lag of `\(i\)` in its own equation). 
+  
+  - Typically an uninformative (very loose) prior is placed on intercepts and any deterministic terms
+  
+---
+# Minnesota Prior: Pros and Cons
+&lt;div style="font-size: 25px;"&gt;
+
+- Reduces overfitting by shrinking most coefficients towards zero.
+
+--
+
+- Often conjugate (or semi-conjugate) under assumptions (normal prior on coefficients, fixed diagonal `\(\Sigma\)`), so posterior computation is fast and analytically.
+
+--
+
+- Only a few intuitive hyperparameters (`\(\lambda\)`’s) which can be set to standard values (e.g. `\(\lambda_1 \approx0.2\)`, `\(\lambda_2=1\)`) that usually work well, or tuned to beliefs.
+
+
+--
+
+- **Cons:**
+  - Assumes all variables have similar dynamics (e.g. all behave like random walks), which may not hold in practice.
+  
+  - Can be too restrictive if some variables have very different dynamics (e.g. stationary vs. unit-root).
+  
+  - Shrinkage can lead to biased estimates if the true coefficients are far from the prior means.
+
+---
+# Beyond Minnesota: Global-Local Shrinkage
+&lt;div style="font-size: 25px;"&gt;
+
+--
+
+- Minnesota prior&lt;/span&gt; applies the same shrinkage level to all coefficients in a group (e.g. all cross-lags). 
+
+--
+
+- **Global-local shrinkage** allows different degrees of shrinkage for each coefficient, improving flexibility.
+
+--
+
+- The key idea: introduce a global parameter for overall shrinkage and a local parameter for each coefficient.
+
+--
+
+- Global-Local Structure: Each coefficient `\(\beta_{ij}\)` gets a prior with two levels
+  - a shared global shrinkage parameter (controls overall tightness/sparsity across all coefficients or a large subset),
+  
+  - an individual local shrinkage parameter, specific to `\(\beta_{ij}\)`, allowing some coefficients to be very tightly shrunk (if unimportant) while others can be relatively free (if the data deems them important).
+
+???
+
+- Spike-and-Slab vs. Continuous Shrinkage: One approach is spike-and-slab (e.g. Stochastic Search Variable Selection) which puts a mixture prior on each coefficient — a point-mass (spike at 0) with a certain probability and a diffuse distribution (slab) otherwise.
+
+- Global-local continuous shrinkage priors (like the Horseshoe or Normal-Gamma) achieve a similar effect without a discrete mixture their density is sharply peaked at zero (most coefficients a priori very small) but with heavy tails (allowing a few large coefficients if supported by data).
+
+  
+---
 #  Adaptive Hierarchical Priors (AHPs)
 &lt;div style="font-size: 27px;"&gt;
 
@@ -404,148 +480,6 @@ where
 --
 
 - AHPs are a powerful tool for Bayesian VAR modeling, providing a flexible and adaptive framework for incorporating prior information while allowing the data to guide the estimation process.
-
----
-# Minnesota-Type Normal-Gamma Bayesian VARs (MT-NGBVARs)
-&lt;div style="font-size: 25px;"&gt;
-
-- **Large VAR Models in Macroeconomics:** VARs are workhorses for analyzing interconnected economic variables (e.g. output, inflation, interest rates). 
-- However, including many variables (`large VARs`) means estimating *hundreds* of parameters, which risks overfitting.  
-- **The Overfitting Challenge:** With limited data, unrestricted VARs suffer high estimation uncertainty and poor out-of-sample forecasts. 
-- We need to *shrink* estimates towards more plausible values to improve stability and forecast accuracy.  
-- **Bayesian Solution:** Bayesian VARs (BVARs) introduce **prior distributions** on the VAR coefficients to impose structure and shrinkage. Priors act as “regularization,” reducing parameter uncertainty and improving forecasts.  
-- **Classic Approach – Minnesota Prior:** The Minnesota prior (Litterman, 1980) became a popular choice to address overfitting by assuming each variable follows a random walk with drift. It shrinks coefficients on lagged variables towards zero (or unity for own first lag) in a sensible way.
-
-
----
-# MT-NGBVARs
-&lt;div style="font-size: 25px;"&gt;
-
-- We consider a VAR(`\(p\)`) for `\(K\)` endogenous variables `\(\mathbf{y}_t = (y_{1t},\dots,y_{Kt})'\)` (e.g. GDP, inflation, etc.) at time `\(t\)`:
-
---
-
-`$$\mathbf{y}_t = c + A_1\,\mathbf{y}_{t-1} + A_2\,\mathbf{y}_{t-2} + \cdots + A_p\,\mathbf{y}_{t-p} + \varepsilon_t$$` 
-
---
-
--  where `\(A_\ell\)` are `\(K\times K\)` coefficient matrices and `\(\varepsilon_t \sim N(\mathbf{0}, \Sigma)\)` is an error with covariance `\(\Sigma\)`.  
-
---
-
-- **Number of Parameters:** Without priors, a VAR can have `\(K^2 p\)` slope parameters plus intercepts (and `\(\frac{K(K+1)}{2}\)` in `\(\Sigma\)`). For large `\(K\)` and `\(p\)`, this is enormous (e.g. `\(K{=}20\)`, `\(p{=}4\)` gives 1600+ coefficients!). Estimation uncertainty is severe
-
---
-
-- **Bayesian Inference:** We place a prior on `\((A_1,\dots,A_p,\Sigma)\)` and combine it with the likelihood from data. The result is a posterior distribution for the coefficients. With a wisely chosen prior, even a large VAR can be estimated robustly, borrowing strength from prior beliefs.
-
---
-
-- We focus on priors for the coefficients `\(A_\ell\)`. (Priors on `\(\Sigma\)` often use a simple form like an inverse-Wishart, or assume diagonal `\(\Sigma\)` for simplicity under Minnesota.)
-
-
-
-
----
-# Minnesota Prior: Intuition
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- **Random Walk Belief:** The Minnesota prior assumes each variable `\(y_{i}\)` behaves like a random walk (especially suitable for macroeconomic aggregates). This implies a priori that variable `\(i\)`’s own first lag coefficient `\(\approx 1\)`, and other coefficients `\(\approx 0\)`.  
-
---
-
-- **Prior Means:** Traditionally, `\(E[\text{coef}_{i,j,\ell}] = 0\)` for most coefficients, **except** `\(E[\text{coef}_{i,i,1}] = 1\)` for the own first lag (to allow for unit-root behavior). In practice, some implementations center all lag coefficients at 0, treating the random-walk as a soft tendency rather than exact mean 1.
-
---
-
-- **Shrinkage Structure:** The Minnesota prior imposes **greater shrinkage on certain coefficients**:
-
-  - Coefficients on **longer lags** are more tightly shrunk to zero than short lags (decay with lag length).
-  
-  - **Cross-variable lags** (lag of variable `\(j\)` in equation `\(i\)` for `\(i\neq j\)`) are more tightly shrunk than own lags (lag of `\(i\)` in its own equation). 
-  
-  - Typically an uninformative (very loose) prior is placed on intercepts and any deterministic terms
----
-# Minnesota Prior: Specification
-&lt;div style="font-size: 20px;"&gt;
-
-- Prior Variance Formula: For coefficient on variable `\(j\)`’s lag `\(\ell\)` in equation `\(i\)`:
-`$$\begin{cases} \frac{\lambda_1^2}{\ell^{\lambda_2}}, &amp; i=j \text{ (own lag)};\\[1ex] \frac{\lambda_1^2\,\lambda_3^2}{\ell^{\lambda_2}}, &amp; i\neq j \text{ (cross lag)}~, \end{cases}$$`
-
-- where `\(\lambda_1\)` controls overall tightness, `\(\lambda_2\)` controls lag decay, and `\(\lambda_3 &lt; 1\)` imposes extra shrinkage on cross-variable lags (Often this is further scaled by relative scale of variables to account for units).
-
---
-
-- **Hyperparameters:** `\(\lambda_1\)` (overall tightness) is usually small (e.g. 0.1–0.2) to heavily shrink coefficients (as `\(\lambda_1 \to 0\)`, priors force coefficients to 0; large `\(\lambda_1\)` gives diffuse priors). 
-
---
-
-- `\(\lambda_2\)` (lag decay) is often set to 1 or 2, meaning higher-order lags get `\(\frac{1}{\ell^{\lambda_2}}\)` much tighter priors.
-
---
-
-- `\(\lambda_3\)` (cross-variable shrinkage) typically `\(\ll 1\)` (e.g. 0.2, so cross-lag coefficients have only 20% of the prior variance of own-lag coefficients).
-
---
-
-- These hyperparameters can be chosen by rules of thumb or treated hierarchically and estimated from data.
-
----
-# Minnesota Prior: Pros and Cons
-&lt;div style="font-size: 25px;"&gt;
-
-- Reduces overfitting by shrinking most coefficients towards zero.
-
---
-
-- Often conjugate (or semi-conjugate) under assumptions (normal prior on coefficients, fixed diagonal `\(\Sigma\)`), so posterior computation is fast and analytically.
-
---
-
-- Only a few intuitive hyperparameters (`\(\lambda\)`’s) which can be set to standard values (e.g. `\(\lambda_1 \approx0.2\)`, `\(\lambda_2=1\)`) that usually work well, or tuned to beliefs.
-
-
---
-
-- **Cons:**
-  - Assumes all variables have similar dynamics (e.g. all behave like random walks), which may not hold in practice.
-  
-  - Can be too restrictive if some variables have very different dynamics (e.g. stationary vs. unit-root).
-  
-  - Shrinkage can lead to biased estimates if the true coefficients are far from the prior means.
-
----
-# Beyond Minnesota: Global-Local Shrinkage
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- Minnesota prior&lt;/span&gt; applies the same shrinkage level to all coefficients in a group (e.g. all cross-lags). 
-
---
-
-- **Global-local shrinkage** allows different degrees of shrinkage for each coefficient, improving flexibility.
-
---
-
-- The key idea: introduce a global parameter for overall shrinkage and a local parameter for each coefficient.
-
---
-
-- Global-Local Structure: Each coefficient `\(\beta_{ij}\)` gets a prior with two levels
-  - a shared global shrinkage parameter (controls overall tightness/sparsity across all coefficients or a large subset),
-  
-  - an individual local shrinkage parameter, specific to `\(\beta_{ij}\)`, allowing some coefficients to be very tightly shrunk (if unimportant) while others can be relatively free (if the data deems them important).
-
-???
-
-- Spike-and-Slab vs. Continuous Shrinkage: One approach is spike-and-slab (e.g. Stochastic Search Variable Selection) which puts a mixture prior on each coefficient — a point-mass (spike at 0) with a certain probability and a diffuse distribution (slab) otherwise.
-
-- Global-local continuous shrinkage priors (like the Horseshoe or Normal-Gamma) achieve a similar effect without a discrete mixture their density is sharply peaked at zero (most coefficients a priori very small) but with heavy tails (allowing a few large coefficients if supported by data).
-
-
 ---
 # Normal-Gamma (NG) Prior
 &lt;div style="font-size: 20px;"&gt;
@@ -725,6 +659,40 @@ bvarfevd(fit, H = 10, method = "cholesky", plot = TRUE)
 # Example BVAR Model
 &lt;div style="font-size: 23px;"&gt;
 
+```
+## 
+## === BVAR Summary ===
+## Backend : BVAR 
+## Prior   : mn 
+## Bayesian VAR consisting of 213 observations, 3 variables and 2 lags.
+## Time spent calculating: 0.74 secs
+## Hyperparameters: lambda 
+## Hyperparameter values after optimisation: 0.61344
+## Iterations (burnt / thinning): 8000 (4000 / 1)
+## Accepted draws (rate): 3870 (0.968)
+## 
+## Numeric array (dimensions 7, 3) of coefficient values from a BVAR.
+## Median values:
+##                        inflation unemployment_rate interest_rate
+## constant                   0.330             0.361         0.031
+## inflation-lag1             1.465            -0.004         0.480
+## unemployment_rate-lag1    -0.250             1.277        -0.555
+## interest_rate-lag1        -0.042            -0.029         0.808
+## inflation-lag2            -0.468             0.032        -0.379
+## unemployment_rate-lag2     0.196            -0.378         0.580
+## interest_rate-lag2         0.042             0.052         0.095
+## 
+## Numeric array (dimensions 3, 3) of variance-covariance values from a BVAR.
+## Median values:
+##                   inflation unemployment_rate interest_rate
+## inflation             0.098            -0.005         0.032
+## unemployment_rate    -0.005             0.110        -0.091
+## interest_rate         0.032            -0.091         0.580
+## 
+## Log-Likelihood: -340.0852 
+## WAIC    : 759.7877 
+## [1] 5.236518 3.083850 3.342267
+```
 
 
 ---
@@ -771,18 +739,18 @@ postbvar(fit, lb_lags = 2, arch_lags = 2)
 ```
 ## $lb_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##        0.52308032        0.37385210        0.07968397 
+##        0.59743980        0.38972941        0.07236543 
 ## 
 ## $jb_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##      0.0003648521      0.0000000000      0.0000000000 
+##       0.000390359       0.000000000       0.000000000 
 ## 
 ## $arch_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##      3.266786e-04      5.130991e-01      1.099200e-11 
+##      3.698832e-04      5.064246e-01      7.709801e-11 
 ## 
 ## $roots_mod
-## [1] 0.9510263 0.9510263 0.7005364 0.7005364 0.3625612 0.1200061
+## [1] 0.9505928 0.9505928 0.7075623 0.7075623 0.3736897 0.1255415
 ## 
 ## $is_stable
 ## [1] TRUE
@@ -1672,7 +1640,7 @@ fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
   |======================================================================|  99%
   |                                                                            
   |======================================================================| 100%
-## Finished MCMC after 1.13 secs.
+## Finished MCMC after 1.06 secs.
 ```
 ]
 
@@ -1681,42 +1649,42 @@ fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
 
 ```
 ## Bayesian VAR consisting of 188 observations, 4 variables and 4 lags.
-## Time spent calculating: 1.13 secs
+## Time spent calculating: 1.06 secs
 ## Hyperparameters: lambda, soc, sur 
 ## Hyperparameter values after optimisation: 0.49983, 0.36911, 0.38366
 ## Iterations (burnt / thinning): 8000 (4000 / 2)
-## Accepted draws (rate): 149 (0.037)
+## Accepted draws (rate): 159 (0.04)
 ## 
 ## Numeric array (dimensions 17, 4) of coefficient values from a BVAR.
 ## Median values:
 ##                        Inflation rate Unemployment rate Interest rate     F1
-## constant                        0.187             0.016         0.142  0.162
-## Inflation rate-lag1             1.349             0.041         0.410  0.197
-## Unemployment rate-lag1         -0.198             1.219        -0.614 -0.194
-## Interest rate-lag1             -0.019            -0.065         0.979  0.010
-## F1-lag1                         0.014             0.141        -0.655  0.735
-## Inflation rate-lag2            -0.248             0.036        -0.239 -0.116
-## Unemployment rate-lag2          0.125            -0.161         0.374  0.112
-## Interest rate-lag2              0.004             0.036        -0.173 -0.082
-## F1-lag2                         0.038            -0.150         0.554  0.202
-## Inflation rate-lag3            -0.077            -0.022         0.147  0.067
-## Unemployment rate-lag3          0.004            -0.068         0.024  0.004
-## Interest rate-lag3              0.004             0.064         0.066  0.033
-## F1-lag3                        -0.021             0.019         0.145  0.097
-## Inflation rate-lag4            -0.029            -0.042        -0.194 -0.084
-## Unemployment rate-lag4          0.046            -0.028         0.212  0.075
-## Interest rate-lag4              0.005            -0.008         0.041 -0.001
-## F1-lag4                        -0.037            -0.014        -0.037 -0.028
+## constant                        0.196             0.025         0.139  0.161
+## Inflation rate-lag1             1.339             0.042         0.402  0.192
+## Unemployment rate-lag1         -0.193             1.212        -0.588 -0.186
+## Interest rate-lag1             -0.019            -0.064         0.974  0.006
+## F1-lag1                         0.012             0.134        -0.628  0.744
+## Inflation rate-lag2            -0.238             0.034        -0.228 -0.105
+## Unemployment rate-lag2          0.119            -0.152         0.341  0.102
+## Interest rate-lag2              0.006             0.034        -0.161 -0.076
+## F1-lag2                         0.034            -0.140         0.520  0.190
+## Inflation rate-lag3            -0.079            -0.022         0.125  0.055
+## Unemployment rate-lag3          0.010            -0.073         0.031  0.010
+## Interest rate-lag3              0.003             0.063         0.056  0.032
+## F1-lag3                        -0.021             0.020         0.153  0.095
+## Inflation rate-lag4            -0.029            -0.040        -0.173 -0.076
+## Unemployment rate-lag4          0.042            -0.029         0.208  0.073
+## Interest rate-lag4              0.004            -0.008         0.038 -0.002
+## F1-lag4                        -0.033            -0.013        -0.037 -0.024
 ## 
 ## Numeric array (dimensions 4, 4) of variance-covariance values from a BVAR.
 ## Median values:
 ##                   Inflation rate Unemployment rate Interest rate     F1
-## Inflation rate             0.101            -0.004         0.040  0.021
+## Inflation rate             0.102            -0.004         0.042  0.022
 ## Unemployment rate         -0.004             0.073        -0.082 -0.020
-## Interest rate              0.040            -0.082         0.556  0.187
-## F1                         0.021            -0.020         0.187  0.087
+## Interest rate              0.042            -0.082         0.561  0.190
+## F1                         0.022            -0.020         0.190  0.088
 ## 
-## Log-Likelihood: -155.1947
+## Log-Likelihood: -156.5421
 ```
 ]
 
@@ -2201,233 +2169,6 @@ This slide emphasizes that allowing coefficients to drift freely in a time-varyi
 - The stochastic volatility component allows the model to account for changing uncertainty in the data, which can be particularly important in macroeconomic applications where volatility may vary due to structural changes or external shocks.
 
 
----
-# Minnesota-Type Normal-Gamma Bayesian VARs (MT-NGBVARs)
-&lt;div style="font-size: 25px;"&gt;
-
-- **Large VAR Models in Macroeconomics:** VARs are workhorses for analyzing interconnected economic variables (e.g. output, inflation, interest rates). 
-- However, including many variables (`large VARs`) means estimating *hundreds* of parameters, which risks overfitting.  
-- **The Overfitting Challenge:** With limited data, unrestricted VARs suffer high estimation uncertainty and poor out-of-sample forecasts. 
-- We need to *shrink* estimates towards more plausible values to improve stability and forecast accuracy.  
-- **Bayesian Solution:** Bayesian VARs (BVARs) introduce **prior distributions** on the VAR coefficients to impose structure and shrinkage. Priors act as “regularization,” reducing parameter uncertainty and improving forecasts.  
-- **Classic Approach – Minnesota Prior:** The Minnesota prior (Litterman, 1980) became a popular choice to address overfitting by assuming each variable follows a random walk with drift. It shrinks coefficients on lagged variables towards zero (or unity for own first lag) in a sensible way.
-
-
----
-# MT-NGBVARs
-&lt;div style="font-size: 25px;"&gt;
-
-- We consider a VAR(`\(p\)`) for `\(K\)` endogenous variables `\(\mathbf{y}_t = (y_{1t},\dots,y_{Kt})'\)` (e.g. GDP, inflation, etc.) at time `\(t\)`:
-
---
-
-`$$\mathbf{y}_t = c + A_1\,\mathbf{y}_{t-1} + A_2\,\mathbf{y}_{t-2} + \cdots + A_p\,\mathbf{y}_{t-p} + \varepsilon_t$$` 
-
---
-
--  where `\(A_\ell\)` are `\(K\times K\)` coefficient matrices and `\(\varepsilon_t \sim N(\mathbf{0}, \Sigma)\)` is an error with covariance `\(\Sigma\)`.  
-
---
-
-- **Number of Parameters:** Without priors, a VAR can have `\(K^2 p\)` slope parameters plus intercepts (and `\(\frac{K(K+1)}{2}\)` in `\(\Sigma\)`). For large `\(K\)` and `\(p\)`, this is enormous (e.g. `\(K{=}20\)`, `\(p{=}4\)` gives 1600+ coefficients!). Estimation uncertainty is severe
-
---
-
-- **Bayesian Inference:** We place a prior on `\((A_1,\dots,A_p,\Sigma)\)` and combine it with the likelihood from data. The result is a posterior distribution for the coefficients. With a wisely chosen prior, even a large VAR can be estimated robustly, borrowing strength from prior beliefs.
-
---
-
-- We focus on priors for the coefficients `\(A_\ell\)`. (Priors on `\(\Sigma\)` often use a simple form like an inverse-Wishart, or assume diagonal `\(\Sigma\)` for simplicity under Minnesota.)
-
-
-
-
----
-# Minnesota Prior: Intuition
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- **Random Walk Belief:** The Minnesota prior assumes each variable `\(y_{i}\)` behaves like a random walk (especially suitable for macroeconomic aggregates). This implies a priori that variable `\(i\)`’s own first lag coefficient `\(\approx 1\)`, and other coefficients `\(\approx 0\)`.  
-
---
-
-- **Prior Means:** Traditionally, `\(E[\text{coef}_{i,j,\ell}] = 0\)` for most coefficients, **except** `\(E[\text{coef}_{i,i,1}] = 1\)` for the own first lag (to allow for unit-root behavior). In practice, some implementations center all lag coefficients at 0, treating the random-walk as a soft tendency rather than exact mean 1.
-
---
-
-- **Shrinkage Structure:** The Minnesota prior imposes **greater shrinkage on certain coefficients**:
-
-  - Coefficients on **longer lags** are more tightly shrunk to zero than short lags (decay with lag length).
-  
-  - **Cross-variable lags** (lag of variable `\(j\)` in equation `\(i\)` for `\(i\neq j\)`) are more tightly shrunk than own lags (lag of `\(i\)` in its own equation). 
-  
-  - Typically an uninformative (very loose) prior is placed on intercepts and any deterministic terms
----
-# Minnesota Prior: Specification
-&lt;div style="font-size: 25px;"&gt;
-
-- Prior Variance Formula: For coefficient on variable `\(j\)`’s lag `\(\ell\)` in equation `\(i\)`:
-`$$\begin{cases} \frac{\lambda_1^2}{\ell^{\lambda_2}}, &amp; i=j \text{ (own lag)};\\[1ex] \frac{\lambda_1^2\,\lambda_3^2}{\ell^{\lambda_2}}, &amp; i\neq j \text{ (cross lag)}~, \end{cases}$$`
-
-- where `\(\lambda_1\)` controls overall tightness, `\(\lambda_2\)` controls lag decay, and `\(\lambda_3 &lt; 1\)` imposes extra shrinkage on cross-variable lags (Often this is further scaled by relative scale of variables to account for units).
-
---
-
-- **Hyperparameters:** `\(\lambda_1\)` (overall tightness) is usually small (e.g. 0.1–0.2) to heavily shrink coefficients (as `\(\lambda_1 \to 0\)`, priors force coefficients to 0; large `\(\lambda_1\)` gives diffuse priors). 
-
---
-
-- `\(\lambda_2\)` (lag decay) is often set to 1 or 2, meaning higher-order lags get `\(\frac{1}{\ell^{\lambda_2}}\)` much tighter priors.
-
---
-
-- `\(\lambda_3\)` (cross-variable shrinkage) typically `\(\ll 1\)` (e.g. 0.2, so cross-lag coefficients have only 20% of the prior variance of own-lag coefficients).
-
---
-
-- These hyperparameters can be chosen by rules of thumb or treated hierarchically and estimated from data.
-
----
-# Minnesota Prior: Pros and Cons
-&lt;div style="font-size: 25px;"&gt;
-
-- Reduces overfitting by shrinking most coefficients towards zero.
-
---
-
-- Often conjugate (or semi-conjugate) under assumptions (normal prior on coefficients, fixed diagonal `\(\Sigma\)`), so posterior computation is fast and analytically.
-
---
-
-- Only a few intuitive hyperparameters (`\(\lambda\)`’s) which can be set to standard values (e.g. `\(\lambda_1 \approx0.2\)`, `\(\lambda_2=1\)`) that usually work well, or tuned to beliefs.
-
-
---
-
-- **Cons:**
-  - Assumes all variables have similar dynamics (e.g. all behave like random walks), which may not hold in practice.
-  
-  - Can be too restrictive if some variables have very different dynamics (e.g. stationary vs. unit-root).
-  
-  - Shrinkage can lead to biased estimates if the true coefficients are far from the prior means.
-
----
-# Beyond Minnesota: Global-Local Shrinkage
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- Minnesota prior&lt;/span&gt; applies the same shrinkage level to all coefficients in a group (e.g. all cross-lags). 
-
---
-
-- **Global-local shrinkage** allows different degrees of shrinkage for each coefficient, improving flexibility.
-
---
-
-- The key idea: introduce a global parameter for overall shrinkage and a local parameter for each coefficient.
-
---
-
-- Global-Local Structure: Each coefficient `\(\beta_{ij}\)` gets a prior with two levels
-  - a shared global shrinkage parameter (controls overall tightness/sparsity across all coefficients or a large subset),
-  
-  - an individual local shrinkage parameter, specific to `\(\beta_{ij}\)`, allowing some coefficients to be very tightly shrunk (if unimportant) while others can be relatively free (if the data deems them important).
-
-???
-
-- Spike-and-Slab vs. Continuous Shrinkage: One approach is spike-and-slab (e.g. Stochastic Search Variable Selection) which puts a mixture prior on each coefficient — a point-mass (spike at 0) with a certain probability and a diffuse distribution (slab) otherwise.
-
-- Global-local continuous shrinkage priors (like the Horseshoe or Normal-Gamma) achieve a similar effect without a discrete mixture their density is sharply peaked at zero (most coefficients a priori very small) but with heavy tails (allowing a few large coefficients if supported by data).
-
-
----
-# Normal-Gamma (NG) Prior
-&lt;div style="font-size: 25px;"&gt;
-
-- The Normal-Gamma (NG) prior is a flexible global-local shrinkage prior that combines a normal distribution for the coefficients with a gamma distribution for their variances.
-
---
-
-- The NG prior is defined as:
-
-- `$$\beta_{ij} \sim N(0, \tau^2 \sigma^2_{ij}), \quad \sigma^2_{ij} \sim \text{Gamma}(a, b)$$`
-
-- Where:
-  - `\(\beta_{ij}\)` is the coefficient for variable `\(i\)` at lag `\(j\)`.
-  - `\(\tau^2\)` is a global shrinkage parameter that controls the overall tightness of the prior.
-  - `\(\sigma^2_{ij}\)` is a local variance parameter for each coefficient, allowing for different degrees of shrinkage across coefficients.
-  - `\(a\)` and `\(b\)` are hyperparameters of the gamma distribution, controlling the shape and scale of the local variances.
-  
-- The NG prior allows for flexible shrinkage, where some coefficients can be very small (shrunk towards zero) while others can be larger, depending on the data.
-
-- The NG prior is particularly useful in high-dimensional settings where the number of coefficients is large, as it allows for adaptive shrinkage based on the data.
-
----
-# Normal-Gamma (NG) Prior
-
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- The NG prior is conjugate, meaning that the posterior distribution of the coefficients given the data can be computed analytically.
-
---
-
-- The posterior distribution of the coefficients under the NG prior is also a normal distribution, which allows for efficient sampling using Gibbs sampling or other MCMC methods.
-
---
-
-- The NG prior can be combined with other priors, such as the Minnesota prior, to further improve estimation accuracy and control overfitting.
-
---
-
-- The NG prior is particularly useful in large VAR models where the number of coefficients is large, as it allows for flexible shrinkage and improves estimation accuracy.
-
---
-
-- The NG prior can also be used in conjunction with other Bayesian methods, such as empirical Bayes or hierarchical modeling, to further improve estimation accuracy and control overfitting.
-
----
-# Minnesota-Type Normal-Gamma Prior
-&lt;div style="font-size: 25px;"&gt;
-
---
-
-- Hybrid Prior: Recent work (Chan, 2021) combines the best of both worlds by embedding the NG prior into a Minnesota-style framework
-
---
-
-- This allows for the intuitive shrinkage structure of Minnesota while retaining the flexibility of NG.
-
---
-
--  Each coefficient `\(\beta_{i,j,\ell}\)` has:
-
-  - a Minnesota variance scale `\(C_{i,j,\ell}\)` (as if it had a Minnesota prior, accounting for own vs cross and lag `\(\ell\)`),
-  
-  - its own local shrinkage `\(\psi_{i,j,\ell} \sim \Gamma(\nu_\psi,;\nu_\psi/2)\)`,
-  
-  - and separate global scales `\(\kappa_1\)` and `\(\kappa_2\)` for own-lag vs cross-lag coefficients respectively
-
-
----
-# Minnesota-Type Normal-Gamma Prior
-&lt;div style="font-size: 25px;"&gt;
-
-- The prior becomes:
-
-`$$\beta_{i,j,\ell} \sim N\left(0, \frac{C_{i,j,\ell}}{\kappa_1^{\ell-1} + \kappa_2^{\ell-1}} \psi_{i,j,\ell}\right)$$`
-
-- where `\(\kappa_1\)` controls shrinkage for own lags and `\(\kappa_2\)` for cross lags.
-
-- The local `\(\psi_{i,j,\ell}\)` allows each coefficient to adaptively shrink based on its importance, while the global `\(\kappa_{g(i,j)}\)` controls overall tightness.
-
-- Essentially, we still give each coefficient a Minnesota-like prior variance `\(C_{i,j,\ell}\)`, but instead of a fixed normal prior, we make it an NG prior (with local `\(\psi\)` and appropriate global scale `\(\kappa_{g(i,j)}\)`).
-
-- This allows for flexible shrinkage while still imposing the Minnesota structure, enabling better estimation in large VARs.
-
 
 ---
 # Example of TVP-BVAR
@@ -2790,10 +2531,8 @@ conn &lt;- connectedness(
 
 --
 
-- The relationship between the reduced-form errors `\(u_t\)` and the structural shocks `\(\varepsilon_t\)` is given by:
-
-so that **reduced‑form errors** and **structural shocks** are linked by
-`$$e_t \equiv A_0^{-1}\varepsilon_t\,,\qquad \Sigma = A_0^{-1} (A_0^{-1})' \,.$$`
+- The relationship between the .my-coral[**reduced-form errors**] `\(u_t\)` and the .my-coral[**structural shocks**] `\(\varepsilon_t\)` are linked by
+`$$u_t \equiv A_0^{-1}\varepsilon_t\,,\qquad \Sigma = A_0^{-1} (A_0^{-1})' \,.$$`
 
 We call `\(B_0 \equiv A_0^{-1}\)` the **impact matrix**. Identifying the model = learning `\(B_0\)` (up to signs/labels).
 
