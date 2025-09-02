@@ -4,7 +4,7 @@
     <title>Econometric Modelling Experts Development Programme - Module III</title>
     <meta charset="utf-8" />
     <meta name="author" content="William Godfred Cantah (Ph.D)" />
-    <meta name="date" content="2025-08-31" />
+    <meta name="date" content="2025-09-02" />
     <script src="libs/header-attrs-2.29/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
     <link href="libs/panelset-0.3.0/panelset.css" rel="stylesheet" />
@@ -224,31 +224,25 @@ The result is the **posterior**, which blends data and prior information.
 - `\(\otimes\)` denotes the Kronecker product, which ensures that uncertainty in each coefficient is scaled by the appropriate element of `\((\Sigma)\)`.
 
 ???
-# A common prior: Normal–Inverse–Wishart (NIW)
+# Prior Specification — presenter notes (Normal–Inverse-Wishart in a BVAR)
 
-We place a joint prior on `\((\beta,\Sigma)\)` using a convenient conjugate form:
+• What the single line **β | Σ ~ N(β₀, Σ ⊗ V₀)** is telling us  
+  – We are using the **matrix-normal / inverse-Wishart (MNIW)** joint prior for a multivariate regression/VAR: coefficients are **matrix-normal conditional on Σ**, and Σ itself gets an inverse-Wishart prior. This is **conjugate**, so posterior updates and Gibbs draws are fast (draw Σ from IW, then β | Σ from matrix-normal). :contentReference[oaicite:0]{index=0}
 
-`$$\beta \mid \Sigma \sim \mathcal N\!\big(\beta_0,\; \Sigma \otimes V_0\big), 
-\qquad 
-\Sigma \sim \mathcal{IW}(S,\nu).$$`
+• Interpreting each symbol on the slide  
+  – **β**: the full coefficient matrix (size \((1+kp) \times k\)): intercept + all lag coefficients for all equations, stacked column-wise.  
+  – **β₀**: the **prior mean** of β. In “Minnesota style,” we often set **own first lags near 1** (random-walk belief) and **everything else near 0** (cross-lags and higher lags), which encodes shrinkage toward persistence-with-parsimony. :contentReference[oaicite:1]{index=1}  
+  – **Σ**: the \(k \times k\) **residual covariance** across equations (how shocks co-move contemporaneously). Inverse-Wishart is the classic conjugate prior for this block. :contentReference[oaicite:2]{index=2}  
+  – **V₀**: the prior covariance for the **rows** of β (across regressors); tuning its scale controls **how tightly** we shrink coefficients toward β₀ (smaller \(V₀\) ⇒ stronger shrinkage).  
+  – **⊗ (Kronecker product)**: makes the matrix-normal covariance **separable**—**Σ** scales columns (equations) and **V₀** scales rows (regressors). This “row/column” scaling is the hallmark of the matrix-normal prior. :contentReference[oaicite:3]{index=3}
 
-**Objects and intuition**
+• How to explain the **role of shrinkage** here  
+  – **β₀** sets *where* we shrink (e.g., own-lag ≈ 1, others ≈ 0).  
+  – **V₀** sets *how hard* we shrink (overall tightness and lag-decay you choose).  
+  – Using Σ inside the covariance (via **Σ ⊗ V₀**) automatically **scales uncertainty by equation variance**, so coefficients in noisier equations get looser priors than in quiet ones. :contentReference[oaicite:4]{index=4}
 
-- `\(\beta\)`: the `\((1+kp)\times k\)` matrix of all intercepts and lag coefficients.
-
-- `\(\beta_0\)` (prior mean): our best guess before seeing the data.  
-  *Minnesota-style choice*:  
-  - own first lag close to **1** (random-walk persistence),  
-  - all other coefficients centered at **0** (small unless data say otherwise).
-
-- **$\Sigma$: the `\(k\times k\)` covariance matrix of shocks (how innovations co-move).
-
-- `\(V_0\)` (prior covariance on `\(\beta\)`): controls **shrinkage strength** toward `\(\beta_0\)`.  
-  Smaller diagonal elements ⇒ stronger pull toward the prior mean (more regularization).
-
-- `\(S,\nu\)` in `\(\Sigma\sim\mathcal{IW}(S,\nu)\)`: set the scale and tightness of beliefs about shock sizes/correlations.
-
-- `\(\otimes\)` (Kronecker product): scales each block of uncertainty in `\(\beta\)` by the appropriate shock variance in `\(\Sigma\)`, so volatile equations get appropriately wider priors.
+• One-slide “what the audience should take away”  
+  – This prior is **computationally convenient (conjugate)** and **economically sensible** when paired with Minnesota-style choices for β₀ and V₀: it shrinks toward a parsimonious, persistent benchmark while letting the data pull coefficients away when strongly warranted. :contentReference[oaicite:5]{index=5}
 
 # Plain-English takeaway
 
@@ -280,39 +274,33 @@ We place a joint prior on `\((\beta,\Sigma)\)` using a convenient conjugate form
 - `\(\beta\)` is treated as if it comes from a multivariate normal distribution (that’s the “Normal” part).
 - `\(\Sigma\)` is treated as if it comes from an Inverse-Wishart distribution, which is a common choice for covariance matrices in Bayesian statistics (that’s the “Inverse-Wishart” part).
 
+
 ???
-???
-• We estimate two objects in a VAR: β (all coefficients) and Σ (shock covariance).
-• Because the likelihood couples them, uncertainty in β depends on Σ. A *joint prior* encodes
-  which (β, Σ) pairs are plausible before seeing data.
-• Use Normal–Inverse-Wishart:
-    – β | Σ ~ N(β₀, Σ ⊗ V₀)  → coefficient uncertainty scales with shock variability.
-    – Σ ~ IW(S, ν)            → standard Bayesian prior for covariance matrices.
-• Intuition: big shocks ⇒ wider β prior; small shocks ⇒ tighter β prior.
-• Payoff: coherent uncertainty, better small-sample behavior, and conjugacy for easy Gibbs sampling.
-• Take-away: we don’t set priors independently; we link them so coefficient precision respects the system’s noise level.
+# Prior Specification (continued): **Why a joint prior on β and Σ?** — presenter notes
 
+• What this slide is about  
+  – In a VAR we need to estimate two blocks: **β** (all intercepts and lag coefficients) and **Σ** (the covariance of the reduced-form shocks).  
+  – A **joint prior** simply means we state, *before seeing the data*, what combinations of (β, Σ) we regard as plausible. This gives a coherent starting point for estimation.
 
-Inverse-Wishart Distribution: Detailed Notes
-The Inverse-Wishart distribution is a probability distribution defined on positive-definite matrices. It is the multivariate generalization of the inverse-gamma distribution (which is for scalar variances) and is widely used in Bayesian statistics as a conjugate prior for the covariance matrix of a multivariate normal distribution.
+• The standard joint prior used here  
+  – **Normal for β | Σ**: treat the coefficients as coming from a (matrix-)normal distribution **conditional on Σ**. Intuition: the scale of shocks (Σ) tells us how dispersed the coefficients should be across equations; using Σ to scale the prior makes the prior **scale-aware** and comparable across equations. :contentReference[oaicite:0]{index=0}  
+  – **Inverse-Wishart for Σ**: treat the shock covariance itself as coming from an inverse-Wishart distribution—popular because it is **conjugate** to the Gaussian likelihood. Its hyperparameters act like “prior sample size” and a “prior scatter” matrix. :contentReference[oaicite:1]{index=1}
 
-1. Purpose and Role in BVAR Models
-In the context of BVAR models, the Inverse-Wishart distribution is typically chosen as the prior distribution for the error covariance matrix `\(\Sigma\)`.
+• Why choose this pair (the conjugacy pay-off)  
+  – With this Normal–Inverse-Wishart (matrix-normal / IW) setup, the **posterior stays in the same family**: after combining prior with data, you update a handful of hyperparameters and you’re done.  
+  – Sampling is fast: one Gibbs iteration is **draw Σ** from inverse-Wishart, then **draw β | Σ** from matrix-normal. This is why this prior is the workhorse in reduced-form BVARs. :contentReference[oaicite:2]{index=2}
 
-Recall the VAR model's error term assumption:
+• How to *read* the slide bullets to the audience  
+  – “**β is Normal**” ⇒ we encode beliefs about coefficient sizes (e.g., shrink cross-lags toward zero, allow own first lag more freedom by choosing the prior mean/covariance appropriately).  
+  – “**Σ is Inverse-Wishart**” ⇒ we encode beliefs about overall volatility and co-movement of shocks (e.g., stronger prior df = tighter belief).  
+  – Together this joint prior is often called **MNIW/NIW** and is the natural conjugate choice for VARs written as a multivariate regression. :contentReference[oaicite:3]{index=3}
 
-`$$u_t ∼N(0,Σ)$$`
+• Practical guidance to say aloud  
+  – Pick **β’s prior mean/covariance** to reflect Minnesota-style shrinkage if desired (own-lag loose, cross-lags tight, lag-decay). Conjugacy is retained. :contentReference[oaicite:4]{index=4}  
+  – Avoid ultra-diffuse IW on Σ in small samples (it can be too permissive). Use reasonable degrees-of-freedom and a scale that reflects the data’s units, or move to hierarchical variants if needed. :contentReference[oaicite:5]{index=5}
 
-where Σ is the k×k covariance matrix of the errors across the k variables.
-
-Choosing the Inverse-Wishart as a prior for Σ is beneficial because it is a conjugate prior to the multivariate normal likelihood function. This means that if the likelihood is multivariate normal (as it is for the VAR errors) and the prior for the covariance matrix is Inverse-Wishart, then the resulting posterior distribution for the covariance matrix will also be an Inverse-Wishart distribution. This property greatly simplifies the analytical derivation and computational sampling (e.g., in Gibbs sampling) of the posterior.
-
-2. Parameters of the Inverse-Wishart Distribution
-An Inverse-Wishart distribution is characterized by two parameters:
-
-Degrees of Freedom (ν): A scalar value, typically ν&gt;k−1, where k is the dimension of the square matrix (i.e., the number of variables in our VAR system). This parameter controls the shape and variance of the distribution. A larger ν implies a tighter distribution around the expected value, similar to how a larger sample size in frequentist statistics leads to more precise estimates.
-
-Scale Matrix (Ψ): A symmetric, positive-definite k×k matrix. This matrix influences the location or expected value of the distribution. It can be thought of as a "prior guess" for the shape and scale of the covariance matrix.
+• One-liner close  
+  – “A **joint Normal–Inverse-Wishart prior** ties together our beliefs about dynamics (β) and shock co-movement (Σ), keeps computation easy (conjugate), and plays nicely with Minnesota-style shrinkage.”
 
 
 ---
@@ -1212,40 +1200,6 @@ bvarfevd(fit, H = 10, method = "cholesky", plot = TRUE)
 # Example BVAR Model
 &lt;div style="font-size: 23px;"&gt;
 
-```
-## 
-## === BVAR Summary ===
-## Backend : BVAR 
-## Prior   : mn 
-## Bayesian VAR consisting of 213 observations, 3 variables and 2 lags.
-## Time spent calculating: 0.77 secs
-## Hyperparameters: lambda 
-## Hyperparameter values after optimisation: 0.61344
-## Iterations (burnt / thinning): 8000 (4000 / 1)
-## Accepted draws (rate): 3879 (0.97)
-## 
-## Numeric array (dimensions 7, 3) of coefficient values from a BVAR.
-## Median values:
-##                        inflation unemployment_rate interest_rate
-## constant                   0.329             0.364         0.036
-## inflation-lag1             1.468            -0.004         0.480
-## unemployment_rate-lag1    -0.253             1.277        -0.558
-## interest_rate-lag1        -0.042            -0.029         0.808
-## inflation-lag2            -0.472             0.032        -0.379
-## unemployment_rate-lag2     0.199            -0.377         0.578
-## interest_rate-lag2         0.043             0.053         0.091
-## 
-## Numeric array (dimensions 3, 3) of variance-covariance values from a BVAR.
-## Median values:
-##                   inflation unemployment_rate interest_rate
-## inflation             0.098            -0.005         0.032
-## unemployment_rate    -0.005             0.110        -0.091
-## interest_rate         0.032            -0.091         0.581
-## 
-## Log-Likelihood: -339.9876 
-## WAIC    : 760.673 
-## [1] 5.240381 3.088234 3.339070
-```
 
 
 ---
@@ -1292,18 +1246,18 @@ postbvar(fit, lb_lags = 2, arch_lags = 2)
 ```
 ## $lb_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##        0.63730790        0.39697425        0.07854162 
+##        0.59184337        0.38157864        0.08175051 
 ## 
 ## $jb_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##      0.0005122872      0.0000000000      0.0000000000 
+##      0.0004331099      0.0000000000      0.0000000000 
 ## 
 ## $arch_pvalue
 ##         inflation unemployment_rate     interest_rate 
-##      3.835182e-04      5.366138e-01      8.419284e-12 
+##      3.643603e-04      5.179785e-01      4.249538e-11 
 ## 
 ## $roots_mod
-## [1] 0.9493765 0.9493765 0.7086767 0.7086767 0.3740908 0.1223522
+## [1] 0.9509335 0.9509335 0.7036067 0.7036067 0.3724826 0.1218078
 ## 
 ## $is_stable
 ## [1] TRUE
@@ -2445,7 +2399,7 @@ fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
   |======================================================================|  99%
   |                                                                            
   |======================================================================| 100%
-## Finished MCMC after 1.01 secs.
+## Finished MCMC after 1.05 secs.
 ```
 ]
 
@@ -2454,42 +2408,42 @@ fit &lt;- bfavar(Y, y_vars = y_vars, F_hat = F_bbe,
 
 ```
 ## Bayesian VAR consisting of 188 observations, 4 variables and 4 lags.
-## Time spent calculating: 1.01 secs
+## Time spent calculating: 1.05 secs
 ## Hyperparameters: lambda, soc, sur 
 ## Hyperparameter values after optimisation: 0.49983, 0.36911, 0.38366
 ## Iterations (burnt / thinning): 8000 (4000 / 2)
-## Accepted draws (rate): 125 (0.031)
+## Accepted draws (rate): 114 (0.028)
 ## 
 ## Numeric array (dimensions 17, 4) of coefficient values from a BVAR.
 ## Median values:
 ##                        Inflation rate Unemployment rate Interest rate     F1
-## constant                        0.186             0.016         0.124  0.160
-## Inflation rate-lag1             1.339             0.040         0.396  0.191
-## Unemployment rate-lag1         -0.193             1.214        -0.596 -0.191
-## Interest rate-lag1             -0.018            -0.060         0.969  0.002
-## F1-lag1                         0.010             0.132        -0.621  0.752
-## Inflation rate-lag2            -0.240             0.035        -0.227 -0.106
-## Unemployment rate-lag2          0.123            -0.155         0.354  0.113
-## Interest rate-lag2              0.007             0.031        -0.154 -0.075
-## F1-lag2                         0.039            -0.136         0.514  0.186
-## Inflation rate-lag3            -0.077            -0.024         0.133  0.060
-## Unemployment rate-lag3          0.009            -0.072         0.022  0.007
-## Interest rate-lag3              0.005             0.063         0.060  0.034
-## F1-lag3                        -0.019             0.020         0.146  0.092
-## Inflation rate-lag4            -0.030            -0.039        -0.183 -0.078
-## Unemployment rate-lag4          0.041            -0.029         0.209  0.071
-## Interest rate-lag4              0.002            -0.007         0.034 -0.003
-## F1-lag4                        -0.031            -0.014        -0.037 -0.025
+## constant                        0.195             0.012         0.151  0.166
+## Inflation rate-lag1             1.338             0.040         0.400  0.191
+## Unemployment rate-lag1         -0.195             1.216        -0.595 -0.189
+## Interest rate-lag1             -0.018            -0.061         0.967  0.004
+## F1-lag1                         0.012             0.132        -0.620  0.753
+## Inflation rate-lag2            -0.237             0.031        -0.222 -0.107
+## Unemployment rate-lag2          0.122            -0.151         0.346  0.105
+## Interest rate-lag2              0.004             0.034        -0.159 -0.076
+## F1-lag2                         0.035            -0.137         0.513  0.186
+## Inflation rate-lag3            -0.076            -0.021         0.127  0.057
+## Unemployment rate-lag3          0.008            -0.073         0.037  0.011
+## Interest rate-lag3              0.003             0.063         0.060  0.034
+## F1-lag3                        -0.020             0.018         0.144  0.095
+## Inflation rate-lag4            -0.031            -0.041        -0.172 -0.074
+## Unemployment rate-lag4          0.042            -0.030         0.204  0.069
+## Interest rate-lag4              0.004            -0.008         0.035 -0.002
+## F1-lag4                        -0.031            -0.015        -0.037 -0.023
 ## 
 ## Numeric array (dimensions 4, 4) of variance-covariance values from a BVAR.
 ## Median values:
 ##                   Inflation rate Unemployment rate Interest rate     F1
-## Inflation rate             0.102            -0.005         0.043  0.022
-## Unemployment rate         -0.005             0.073        -0.082 -0.020
-## Interest rate              0.043            -0.082         0.564  0.190
-## F1                         0.022            -0.020         0.190  0.088
+## Inflation rate             0.102            -0.004         0.043  0.022
+## Unemployment rate         -0.004             0.073        -0.083 -0.020
+## Interest rate              0.043            -0.083         0.561  0.190
+## F1                         0.022            -0.020         0.190  0.089
 ## 
-## Log-Likelihood: -156.9515
+## Log-Likelihood: -156.9765
 ```
 ]
 
@@ -2642,43 +2596,51 @@ irf(
 
 - In macroeconomics, such constancy is often unrealistic due to evolving economic conditions and policy regimes.
 
+???
+# Time-Varying Parameter BVARs (TVP-BVARs) — presenter notes
+
+* **Motivation**
+
+ Standard VARs assume **constant coefficients**, which can be unrealistic when policies/regimes evolve. TVP-VARs relax this by letting relationships change over time. 
+
 --
 
 
 - Time-Varying Parameter BVARs (TVP-BVARs) relax this assumption by allowing the coefficients to change over time, capturing structural breaks and evolving relationships.
 
+???
+* **What a TVP-BVAR does**
+
+ Writes the VAR in **state-space form** with coefficients that follow simple dynamics (often **random walks**) and typically **stochastic volatility** for shocks. This captures gradual drifts and structural breaks. 
+
 --
 
 - TVP-BVARs are particularly useful in situations where the underlying economic relationships are expected to change, such as during financial crises, policy regime shifts, or structural changes in the economy.
+
+???
+* **When it’s particularly useful**
+
+ Periods with **policy shifts, crises, or regime changes** where elasticities/propagation mechanisms move over time (e.g., Great Inflation/Moderation, GFC, pandemic). 
 
 --
 
 - They can be estimated using Bayesian methods, often employing a random walk prior on the coefficients to allow for gradual changes over time.
 
 ???
-# Time-Varying Parameter BVARs (TVP-BVARs) — presenter notes
 
-• Motivation
-  – Standard VARs assume **constant coefficients**, which can be unrealistic when policies/regimes evolve. TVP-VARs relax this by letting relationships change over time. :contentReference[oaicite:0]{index=0}
+* **Estimation (how we do it)**
 
-• What a TVP-BVAR does
-  – Writes the VAR in **state-space form** with coefficients that follow simple dynamics (often **random walks**) and typically **stochastic volatility** for shocks. This captures gradual drifts and structural breaks. :contentReference[oaicite:1]{index=1}
+ **Bayesian MCMC (Gibbs)** with Kalman filter/smoother steps; widely used algorithms and corrections 
+are documented (Del Negro &amp; Primiceri, 2013/2015). Software implementations (e.g., *bvarsv* in R) follow this setup. 
 
-• Canonical references / intuition
-  – **Primiceri (2005)**: time-varying coefficients **and** multivariate stochastic volatility; seminal empirical application to U.S. monetary policy. :contentReference[oaicite:2]{index=2}
-  – **Cogley &amp; Sargent (2005)**: evolving post-WWII U.S. inflation dynamics; motivates time variation in macro relationships. :contentReference[oaicite:3]{index=3}
+* **Evidence &amp; practice**
 
-• Estimation (how we do it)
-  – **Bayesian MCMC (Gibbs)** with Kalman filter/smoother steps; widely used algorithms and corrections are documented (Del Negro &amp; Primiceri, 2013/2015). Software implementations (e.g., *bvarsv* in R) follow this setup. :contentReference[oaicite:4]{index=4}
+ For forecasting and inference in **large systems**, TVP-VARs with shrinkage priors are feasible and often perform well; see overviews and scalable methods in **Koop &amp; Korobilis (2013)** and recent general frameworks.
 
-• When it’s particularly useful
-  – Periods with **policy shifts, crises, or regime changes** where elasticities/propagation mechanisms move over time (e.g., Great Inflation/Moderation, GFC, pandemic). :contentReference[oaicite:5]{index=5}
 
-• Evidence &amp; practice
-  – For forecasting and inference in **large systems**, TVP-VARs with shrinkage priors are feasible and often perform well; see overviews and scalable methods in **Koop &amp; Korobilis (2013)** and recent general frameworks. :contentReference[oaicite:6]{index=6}
+* **One-liner to close**
 
-• One-liner to close
-  – “TVP-BVARs let the **data update the model’s relationships through time**—coefficients drift, volatility changes, and we estimate it all coherently in a Bayesian, state-space framework.” 
+ “TVP-BVARs let the **data update the model’s relationships through time**—coefficients drift, volatility changes, and we estimate it all coherently in a Bayesian, state-space framework.” 
 
 ---
 # Nigeria Monetary Policy:Bad Policy or Bad Luck?
@@ -2687,13 +2649,25 @@ irf(
 
 --
 
-- High inflation and real-GDP volatility in Nigeria (1970–2014): was it central-bank policy shifts or changing external shocks? 
+- High inflation and real-GDP volatility in Nigeria (1970–2014): was it central-bank policy shifts or changing external shocks? (Abdullahi, 2016)
+
+???
+* **Framing the question**
+
+Nigeria (1970–2014) saw high inflation and volatile real GDP. Are the swings due to **changing policy behavior** (bad policy) or **changing shocks**, especially oil-market shocks (bad luck)? This slide contrasts both stories with evidence.
 
 --
 
 #### “Bad Policy” story
 
-- TVP-VAR estimates reveal that the *immediate responses* of real GDP, FX reserves and inflation to a policy-rate shock vary significantly over time, suggesting that the CBN’s reaction function (i.e., the VAR coefficients) *changed under different governors* (Abdullahi, 2016).
+- TVP-VAR estimates reveal that the *immediate responses* of real GDP, FX reserves and inflation to a policy-rate shock vary significantly over time, suggesting that the CBN’s reaction function (i.e., the VAR coefficients) *changed under different governors*.
+
+???
+* **“Bad Policy” story (time-varying reaction function)**
+
+1. TVP-VAR evidence shows that the **impact of a policy-rate shock on real GDP, FX reserves, and inflation** changed notably over time, consistent with shifts in the CBN’s reaction function across regimes/governors
+
+2. Interpretation: coefficients in the VAR **drift**—policy transmission varies—so different regimes imply different immediate responses.
 
 --
 
@@ -2702,21 +2676,18 @@ irf(
 - Exogenous shocks—especially, *oil-market demand shocks*, exhibit *time-varying volatility*, which can *mimic* changes in policy effectiveness. Oil-shock variance spikes coincide with apparent regime shifts in impulse responses, implying that *stochastic volatility alone* can generate the look of structural breaks (Bello, 2024)
 
 ???
-# Nigeria Monetary Policy: Bad Policy or Bad Luck? — presenter notes
 
-• Framing the question
-  – Nigeria (1970–2014) saw high inflation and volatile real GDP. Are the swings due to **changing policy behavior** (bad policy) or **changing shocks**, especially oil-market shocks (bad luck)? This slide contrasts both stories with evidence.
+* **“Bad Luck” story (time-varying shock volatility)**
 
-• “Bad Policy” story (time-varying reaction function)
-  – TVP-VAR evidence shows that the **impact of a policy-rate shock on real GDP, FX reserves, and inflation** changed notably over time, consistent with shifts in the CBN’s reaction function across regimes/governors. :contentReference[oaicite:0]{index=0}
-  – Interpretation: coefficients in the VAR **drift**—policy transmission varies—so different regimes imply different immediate responses.
+“Bad Luck” story (time-varying shock volatility)
 
-• “Bad Luck” story (time-varying shock volatility)
-  – Oil-market shocks to Nigeria’s economy display **time-varying volatility**; in a TVP-VAR, oil-specific demand shocks materially affect exchange rate, output growth, and price stability, and their effects **vary over time**. Spikes in shock variance can make IRFs look as if policy changed. 
-  
-  – Broader literature warns that **changes in volatility alone** can mimic regime shifts or apparent changes in transmission—so one can mistake “bad luck” for “bad policy” without modeling stochastic volatility. 
-  
-• How to discriminate in practice (what you’d say you did)
+1. Oil-market shocks to Nigeria’s economy display **time-varying volatility**; in a TVP-VAR, oil-specific demand shocks materially affect exchange rate, output growth, and price stability, and their effects **vary over time**. Spikes in shock variance can make IRFs look as if policy changed. 
+
+2. Interpretation: if **shock variances** (especially oil-related) spike at times that align with apparent regime changes, then **volatility alone** can mimic changes in policy effectiveness.
+
+3. Broader literature warns that **changes in volatility alone** can mimic regime shifts or apparent changes in transmission—so one can mistake “bad luck” for “bad policy” without modeling stochastic volatility. 
+
+**How to discriminate in practice (what you’d say you did)**
   – Use a **TVP-VAR with stochastic volatility**: let both **coefficients** and **shock variances** evolve. Then inspect posteriors:
      1) Do coefficients (policy reaction) **move** materially?  
      2) Or do **shock variances** account for most of the instability?  
@@ -2746,35 +2717,37 @@ irf(
 ???
 # Nigeria Monetary Policy: Bad Policy or Bad Luck? — presenter notes
 
-• Methodological note
-  – We’ll use a **TVP-VAR with stochastic volatility**, so both channels are in play:
-    coefficients can drift (**policy changes**) and shock variances can move (**bad-luck volatility**).
-    This nests the two stories and avoids arbitrary break-date assumptions.
+* Recent policy context
 
-• Recent policy context
-  – After holding the policy rate around **27.5%**, the CBN has maintained a tight stance amid sticky inflation.
-    The key question is whether this reflects a deliberate **policy shift** or simply a response to more volatile shocks.
+– After holding the policy rate around **27.5%**, the CBN has maintained a tight stance amid sticky inflation. The key question is whether this reflects a deliberate **policy shift** or simply a response to more volatile shocks.
 
-• Interpreting “Bad Policy” vs “Bad Luck”
-  – **Bad Policy:** If the **impulse responses to a policy-rate shock** change materially through time,
+* Interpreting “Bad Policy” vs “Bad Luck”
+  
+– **Bad Policy:** If the **impulse responses to a policy-rate shock** change materially through time,
     that suggests the central bank’s **reaction function** shifted across regimes.
-  – **Bad Luck:** If **shock variances** (e.g., oil-related disturbances) spike at times that coincide with apparent
-    regime changes, volatility alone can **mimic** changes in policy effectiveness.
+  
+– **Bad Luck:** If **shock variances** (e.g., oil-related disturbances) spike at times that coincide with apparent regime changes, volatility alone can **mimic** changes in policy effectiveness.
 
-• What the TVP-VAR/SV delivers
-  – Jointly lets the data indicate whether instability is mostly in **βₜ** (coefficients) or in **Σₜ** (volatility).
-  – Estimation proceeds with a Gibbs sampler that alternates draws for factors/parameters/volatility.
 
-• Take-away line
+* **What the TVP-VAR/SV delivers**
+
+– Jointly lets the data indicate whether instability is mostly in **βₜ** (coefficients) or in **Σₜ** (volatility).
+
+– Estimation proceeds with a Gibbs sampler that alternates draws for factors/parameters/volatility.
+
+* **Take-away line**
   – If coefficients look stable but shocks are volatile → **bad luck** dominates.
     If coefficients drift around leadership/framework changes → **bad policy** is implicated.
     In practice, both forces can matter; the TVP-VAR/SV framework helps separate them.
 
 ---
 # Empirical Evidence: Both Transmission and Volatility Change
-&lt;div style="font-size: 25px;"&gt;
+&lt;div style="font-size: 20px;"&gt;
 
 - Studies (Primiceri, 2005; Koop et al., 2009) show that **both** transmission mechanisms and shock variances vary over time.
+
+- Primiceri (2005) finds significant shifts in U.S. monetary policy transmission and volatility using a TVP-SVAR with stochastic volatility.
+
 - Policy implications require models where both VAR coefficients and error covariances can change.
 - Extensive macro literature documents structural breaks and parameter changes (Stock \&amp; Watson, 1996).
 
@@ -2792,25 +2765,21 @@ irf(
 ???
 # Empirical Evidence: Both Transmission and Volatility Change — presenter notes
 
-• Core message
-  – Empirical work shows **both** the transmission mechanism (**time-varying coefficients**) and **shock variances** change over time; classic TVP-SVAR evidence models *both* sources of change jointly. :contentReference[oaicite:0]{index=0}
+* **Policy implication**
 
-• Key studies to cite (one-liners)
-  – **Primiceri (2005):** U.S. monetary policy in a **time-varying structural VAR** where *both coefficients and the variance–covariance matrix evolve*; finds meaningful parameter and volatility shifts. :contentReference[oaicite:1]{index=1}
-  – **Koop, Leon-Gonzalez &amp; Strachan (2009):** Mixture-innovation TVP-VAR that lets data decide whether changes come from parameters or volatility; documents that **either/both can move**. :contentReference[oaicite:2]{index=2}
-  – **Stock &amp; Watson (1996):** Broad evidence of **structural instability** in macro relationships, motivating models that allow parameters and covariances to change. :contentReference[oaicite:3]{index=3}
+– For credible inference and policy analysis, we need models where **VAR coefficients and error covariances** can change—TVP-VARs with stochastic volatility are designed for this. (Tie back to Primiceri-style setups.) 
 
-• Policy implication
-  – For credible inference and policy analysis, we need models where **VAR coefficients and error covariances** can change—TVP-VARs with stochastic volatility are designed for this. (Tie back to Primiceri-style setups.) :contentReference[oaicite:4]{index=4}
+* **Alternative specifications to mention**
 
-• Alternative specifications to mention
-  – **Markov-switching VARs:** regime changes captured by discrete states; e.g., **Sims &amp; Zha (2006)** show a best-fit specification with **time-varying disturbance variances** (and sometimes rule changes). :contentReference[oaicite:5]{index=5}
+1 **Markov-switching VARs:** regime changes captured by discrete states; e.g., **Sims &amp; Zha (2006)** show a best-fit specification with **time-varying disturbance variances** (and sometimes rule changes). :contentReference[oaicite:5]{index=5}
 
-• Why TVP-VARs are now standard
-  – For gradual evolution (not just discrete regimes), **TVP-VARs** have become a **popular workhorse**, including in large systems with shrinkage. (Koop &amp; Korobilis’s survey/results.) :contentReference[oaicite:6]{index=6}
+* **Why TVP-VARs are now standard**
 
-• Wrap-up line
-  – “The literature points to **two moving parts**—transmission and volatility. Good practice is to let **both** vary and let the data tell us which one drives the instability.”
+2. For gradual evolution (not just discrete regimes), **TVP-VARs** have become a **popular workhorse**, including in large systems with shrinkage. (Koop &amp; Korobilis’s survey/results.) 
+
+* **Wrap-up line**
+
+3.  “The literature points to **two moving parts**—transmission and volatility. Good practice is to let **both** vary and let the data tell us which one drives the instability.”
 
 ---
 # TVP–VAR: Model Structure
@@ -2833,38 +2802,49 @@ irf(
 ???
 # TVP–VAR: Model Structure — presenter notes
 
-• Big idea
-  – Same VAR logic, but **coefficients change over time** → written as a **state-space** model.
-  – Lets us capture gradual structural change without hard break dates.
+* **Big idea**
 
-• Objects to remember (no equations)
-  – `\(y_t\)`: stacked vector of observed series (e.g., inflation, output, rate); equations estimated **jointly**.
-  – `\(X_t\)`: predictors (lags of all variables + optional intercept/trend/exogenous controls).
-  – `\(β_t\)`: **time-varying** coefficients at time t; evolve gradually (random-walk style).
-  – `\(ε_t\)` with Σ: observation shocks and their contemporaneous covariance (co-movement across variables).
-  – η_t with Q: shocks that move β_t from t−1 to t; **Q controls how fast** `\(β_t\)` is allowed to drift.
+1. Same VAR logic, but **coefficients change over time** → written as a **state-space** model.
 
-• How to read the model
-  – Observation part: today’s data = lags × **today’s** coefficients + a shock.
-  – State part: today’s coefficients = yesterday’s coefficients **+ a small step**.
-  – Many small steps ⇒ smooth drifts; occasional big steps ⇒ noticeable regime shifts.
+2. Lets us capture gradual structural change without hard break dates.
 
-• Tuning intuition
-  – **Small Q** ⇒ coefficients nearly constant (prevents spurious time variation).
-  – **Larger Q** ⇒ coefficients can adapt faster to real change.
-  – Allowing **time-varying Σ (stochastic volatility)** is important—volatility shifts can otherwise look like parameter change.
 
-• Estimation (what we actually do)
-  – Bayesian **Gibbs** workflow: draw β-paths (Kalman smoother step) → draw variance blocks (Q, Σ; include SV if used) → repeat until convergence.
-  – Summarize posteriors; use draws for **density forecasts** and **time-varying IRFs** (identify per draw, then average &amp; band).
+* **Objects to remember (no equations)**
 
-• Practical checklist
-  – Choose lag order p via ICs/OOS; standardize series if needed.
-  – Put sensible shrinkage on β_t and Q; check sensitivity.
-  – Diagnose MCMC (trace, R-hat, ESS) and **stability** (VAR roots) across draws before reporting results.
+- `\(y_t\)`: stacked vector of observed series (e.g., inflation, output, rate); equations estimated 
 
-• One-liner
-  – “TVP-VARs let relationships **evolve** and shocks’ volatility **change**, giving policy-relevant IRFs and forecasts with coherent uncertainty.”
+**jointly**.
+  – `\(X_t\)`: predictors (lags of all variables + optional intercept/trend/exogenous controls). &lt;br&gt;
+  
+  – `\(β_t\)`: **time-varying** coefficients at time t; evolve gradually (random-walk style). &lt;br&gt;
+  
+  – `\(ε_t\)` with Σ: observation shocks and their contemporaneous covariance (co-movement across variables). &lt;br&gt;
+  
+  – `\(η_t\)` with Q: shocks that move `\(β_t\)` from `\(t−1\)` to `\(t\)`; **Q controls how fast** `\(β_t\)` is allowed to drift. &lt;br&gt;
+
+* **How to read the model**
+  – Observation part: today’s data = lags × **today’s** coefficients + a shock. &lt;br&gt;
+  – State part: today’s coefficients = yesterday’s coefficients **+ a small step**.&lt;br&gt;
+  – Many small steps ⇒ smooth drifts; occasional big steps ⇒ noticeable regime shifts.&lt;br&gt;
+
+* **Tuning intuition**
+
+  1. **Small Q** ⇒ coefficients nearly constant (prevents spurious time variation).&lt;br&gt;
+  
+  – **Larger Q** ⇒ coefficients can adapt faster to real change.&lt;br&gt;
+  – Allowing **time-varying Σ (stochastic volatility)** is important—volatility shifts can otherwise look like parameter change.&lt;br&gt;
+
+*  **Estimation (what we actually do)**
+  – Bayesian **Gibbs** workflow: draw β-paths (Kalman smoother step) → draw variance blocks (Q, Σ; include SV if used) → repeat until convergence.&lt;br&gt;
+  – Summarize posteriors; use draws for **density forecasts** and **time-varying IRFs** (identify per draw, then average &amp; band).&lt;br&gt;
+
+* **Practical checklist**
+  – Choose lag order p via ICs/OOS; standardize series if needed.&lt;br&gt;
+  – Put sensible shrinkage on β_t and Q; check sensitivity.&lt;br&gt;
+  – Diagnose MCMC (trace, R-hat, ESS) and **stability** (VAR roots) across draws before reporting results.&lt;br&gt;
+
+* **One-liner**
+  – “TVP-VARs let relationships **evolve** and shocks’ volatility **change**, giving policy-relevant IRFs and forecasts with coherent uncertainty.” &lt;br&gt;
 
 ---
 # Bayesian Estimation of TVP–VAR
@@ -2888,41 +2868,54 @@ irf(
 ???
 # Bayesian Estimation of TVP–VAR — presenter notes
 
-• Big picture
-  – We estimate the TVP–VAR in a **Bayesian state-space** setup. Priors are placed on the time-varying coefficients (β_t) and on the variance blocks (Σ for observation shocks, Q for coefficient innovations). Sampling is done with **Gibbs/MCMC**, which is efficient for these models. :contentReference[oaicite:0]{index=0}
+* **Big picture**
 
-• What the Gibbs sampler cycles through (one iteration)
-  1) **Sample the entire path of coefficients {β_t} | Σ, Q, data**  
-     – Use **FFBS** (forward-filtering backward-sampling): run a Kalman filter, then draw the states backward to obtain a full draw of β₁:ₜ. :contentReference[oaicite:1]{index=1}
+1. We estimate the TVP–VAR in a **Bayesian state-space** set-up. Priors are placed on the time-varying coefficients (β_t) and on the variance blocks (Σ for observation shocks, Q for coefficient innovations). Sampling is done with **Gibbs/MCMC**, which is efficient for these models. &lt;br&gt;
+2. The key computational step is using **FFBS** (forward-filtering backward-sampling) to draw the entire path of coefficients {β_t} in one block, which improves efficiency over element-by-element sampling. &lt;br&gt;
+
+3. The Gibbs sampler cycles through drawing the entire path of coefficients, then the variance blocks, iterating until convergence. &lt;br&gt;
+
+* **What the Gibbs sampler cycles through (one iteration)**
+  1) **Sample the entire path of coefficients `\({β_t} | Σ, Q\)`, data**  &lt;br&gt;
+  
+     – Use **FFBS** (forward-filtering backward-sampling): run a Kalman filter, then draw the states backward to obtain a full draw of `\(β₁:ₜ\)`. &lt;br&gt;
+     
   2) **Sample Σ | β, data**  
-     – With conjugate setup, draw from an **Inverse-Wishart** (or SV block if using stochastic volatility). Primiceri-style TVP-SV models treat volatilities as time-varying and sample them with a KSC (Kim-Shephard-Chib) step. :contentReference[oaicite:2]{index=2}
+     – With conjugate setup, draw from an **Inverse-Wishart** (or SV block if using stochastic volatility). Primiceri-style TVP-SV models treat volatilities as time-varying and sample them with a KSC (Kim-Shephard-Chib) step. &lt;br&gt;
+     
   3) **Sample Q | β**  
-     – Draw the evolution-variance(s) for β_t (Inverse-Gamma per element if Q is diagonal; IW if modeled as full). Tight Q ⇒ slow coefficient drift; loose Q ⇒ faster drift. :contentReference[oaicite:3]{index=3}
-  4) **(If SV) Sample the log-volatility states** and any auxiliary mixture indicators; Del Negro–Primiceri show the correct **ordering** of these steps for stable mixing. :contentReference[oaicite:4]{index=4}
-  5) **Update hyperparameters** for priors on initial β and on the variance blocks as needed (hierarchical setup). :contentReference[oaicite:5]{index=5}
+     – Draw the evolution-variance(s) for β_t (Inverse-Gamma per element if Q is diagonal; IW if modeled as full). Tight Q ⇒ slow coefficient drift; loose Q ⇒ faster drift. &lt;br&gt;
+     
+  4) **(If SV) Sample the log-volatility states** and any auxiliary mixture indicators; Del Negro–Primiceri show the correct **ordering** of these steps for stable mixing. &lt;br&gt; 
+  
+  5) **Update hyperparameters** for priors on initial β and on the variance blocks as needed (hierarchical setup). &lt;br&gt;
 
-• What to emphasize to the audience
-  – **Why FFBS?** It gives full draws of the whole coefficient path in one block, which greatly improves efficiency over element-by-element sampling. :contentReference[oaicite:6]{index=6}
-  – **Why TVP-SV (time-varying Σ)?** Volatility changes on their own can mimic parameter change; modeling both drifting β_t and changing Σ_t is standard and policy-relevant. :contentReference[oaicite:7]{index=7}
-  – **Key practical point:** TVP–VARs are **high-dimensional**; conjugate blocks + FFBS + the corrected sampler ordering make Gibbs **computationally tractable**. :contentReference[oaicite:8]{index=8}
+* **What to emphasize to the audience**
+  – **Why FFBS?** It gives full draws of the whole coefficient path in one block, which greatly improves efficiency over element-by-element sampling.&lt;br&gt;
+  
+  – **Why TVP-SV (time-varying Σ)?** Volatility changes on their own can mimic parameter change; modeling both drifting β_t and changing `\(Σ_t\)` is standard and policy-relevant.&lt;br&gt; 
+  
+  – **Key practical point:** TVP–VARs are **high-dimensional**; conjugate blocks + FFBS + the corrected sampler ordering make Gibbs **computationally tractable**. &lt;br&gt; 
+  
 
-• Deliverables from the posterior draws
-  – **Point summaries &amp; credible intervals** for β_t, Σ (and Q).  
-  – **Density forecasts** by simulating forward from each draw.  
-  – **Time-varying IRFs/FEVDs**: identify shocks per draw (e.g., Cholesky/sign), compute IRFs, average and form credible bands. :contentReference[oaicite:9]{index=9}
+* **Deliverables from the posterior draws**
+
+  – **Point summaries &amp; credible intervals** for `\(β_t, Σ\)` (and Q).&lt;br&gt;  
+  – **Density forecasts** by simulating forward from each draw. &lt;br&gt; 
+  – **Time-varying IRFs/FEVDs**: identify shocks per draw (e.g., Cholesky/sign), compute IRFs, average and form credible bands. &lt;br&gt;
 
 
-Forward Filtering Backward Sampling (FFBS)
+Forward Filtering Backward Sampling (FFBS) &lt;br&gt;
 
-- Bayesian estimation of Time‐Varying Parameter VARs relies on Markov Chain Monte Carlo (MCMC), specifically a Gibbs sampler, to draw from the joint posterior of the entire path of time‐varying coefficients and covariances. 
+- Bayesian estimation of Time‐Varying Parameter VARs relies on Markov Chain Monte Carlo (MCMC), specifically a Gibbs sampler, to draw from the joint posterior of the entire path of time‐varying coefficients and covariances. &lt;br&gt;
 
-- The core steps alternate between (1) sampling the latent coefficient trajectories `\(\{\beta_t\}\)` using Forward Filtering Backward Sampling (FFBS) conditioned on the covariance matrices `\(\Sigma\)` and `\(Q\)`, and (2) sampling the covariance matrices themselves from their posterior distributions.
+- The core steps alternate between (1) sampling the latent coefficient trajectories `\(\{\beta_t\}\)` using Forward Filtering Backward Sampling (FFBS) conditioned on the covariance matrices `\(\Sigma\)` and `\(Q\)`, and (2) sampling the covariance matrices themselves from their posterior distributions.&lt;br&gt;
 
-- The FFBS algorithm efficiently samples the entire path of time-varying coefficients `\(\{\beta_t\}\)` given the current estimates of the covariance matrices, allowing for a coherent estimation of the dynamic relationships in the data.
+- The FFBS algorithm efficiently samples the entire path of time-varying coefficients `\(\{\beta_t\}\)` given the current estimates of the covariance matrices, allowing for a coherent estimation of the dynamic relationships in the data.&lt;br&gt;
 
-- Sample `\(\{\Sigma, Q}\)` using conjugate priors (e.g., inverse Wishart for `\(\Sigma\)` and Wishart for `\(Q\)`).
+- Sample `\(\{\Sigma, Q}\)` using conjugate priors (e.g., inverse Wishart for `\(\Sigma\)` and Wishart for `\(Q\)`).&lt;br&gt;
 
-- The posterior samples can then be used to compute point estimates (e.g., means, medians) and credible intervals for the parameters, as well as to generate forecasts and impulse response functions.
+- The posterior samples can then be used to compute point estimates (e.g., means, medians) and credible intervals for the parameters, as well as to generate forecasts and impulse response functions.&lt;br&gt;
 
 
 
@@ -2947,34 +2940,39 @@ u_t \sim \mathcal{N}\bigl(0,\,Q\bigr)$$`
 - TVP–VAR can allow for exogenous variables and (optionally) coefficients fixed over time
 
 ???
-The TVP–VAR’s state‐space formulation consists of two linked parts: an observation equation that ties the observed macroeconomic variables to a set of coefficients that are allowed to change over time, and a state equation that treats those coefficients themselves as evolving according to a simple “random‐walk” process. By casting the model in this way, we can use the Kalman filter (or its Bayesian analogue) to infer the unobserved coefficient trajectories from the data, while hyperparameters governing the innovation variances determine how quickly those coefficients are permitted to drift. In practice, one alternates between estimating the full path of coefficients and updating the covariance parameters—often via a Gibbs sampler that leverages conjugate inverse‐Wishart priors—which makes the approach both flexible enough to capture gradual structural change and computationally tractable even in moderately large systems.
+- The TVP–VAR’s state‐space formulation consists of two linked parts: an observation equation that ties the observed macroeconomic variables to a set of coefficients that are allowed to change over time, and a state equation that treats those coefficients themselves as evolving according to a simple “random‐walk” process. 
+
+- By casting the model in this way, we can use the Kalman filter (or its Bayesian analogue) to infer the unobserved coefficient trajectories from the data, while hyperparameters governing the innovation variances determine how quickly those coefficients are permitted to drift. 
+
+- In practice, one alternates between estimating the full path of coefficients and updating the covariance parameters—often via a Gibbs sampler that leverages conjugate inverse‐Wishart priors—which makes the approach both flexible enough to capture gradual structural change and computationally tractable even in moderately large systems.
 
 # Homoskedastic TVP–VARs: Model Structure — presenter notes
 
 • What “homoskedastic” means here
-  – The **error covariance Σ is constant over time**. Coefficients are allowed to drift, but shock variances do not; this is the simplest TVP–VAR specification. :contentReference[oaicite:0]{index=0}
+  – The **error covariance Σ is constant over time**. Coefficients are allowed to drift, but shock variances do not; this is the simplest TVP–VAR specification. &lt;br&gt;
 
 • Read the blocks on the slide (no equations)
-  – **y_t**: vector of observed variables (inflation, output, rate, …), modeled jointly.
-  – **Z_t**: predictor matrix (typically lags of all variables + possibly exogenous terms).
-  – **β_t**: **time-varying** coefficients at time t; they evolve gradually over time (random-walk style), allowing relationships to change. :contentReference[oaicite:1]{index=1}
-  – **ε_t with Σ**: observation shocks; **Σ is fixed** under homoskedasticity. :contentReference[oaicite:2]{index=2}
-  – **u_t with Q**: shocks that move β_t from one period to the next; **Q controls how fast coefficients can drift** (small Q → nearly constant parameters; larger Q → more flexibility). :contentReference[oaicite:3]{index=3}
+  – **$y_t$**: vector of observed variables (inflation, output, rate, …), modeled jointly.&lt;br&gt;
+  – **$Z_t$**: predictor matrix (typically lags of all variables + possibly exogenous terms).&lt;br&gt;
+  – **$β_t$**: **time-varying** coefficients at time t; they evolve gradually over time (random-walk style), allowing relationships to change. &lt;br&gt;
+  – **$ε_t$ with Σ**: observation shocks; **Σ is fixed** under homoskedasticity. &lt;br&gt;
+  – **$u_t$ with Q**: shocks that move β_t from one period to the next; **Q controls how fast coefficients can drift** (small Q → nearly constant parameters; larger Q → more flexibility). &lt;br&gt;
 
-• Estimation workflow (Gibbs in state-space form)
-  – **FFBS** to draw the full path of coefficients {β_t} given (Σ, Q) and data (forward filter, backward sample). :contentReference[oaicite:4]{index=4}
-  – Draw **Σ** (Inverse-Wishart in the homoskedastic case) and **Q** (IW/IG depending on parameterization). :contentReference[oaicite:5]{index=5}
-  – Iterate until convergence; summarize posteriors and produce density forecasts/IRFs from the draws. :contentReference[oaicite:6]{index=6}
+* **Estimation workflow (Gibbs in state-space form)**
+  – **FFBS** to draw the full path of coefficients `\({β_t}\)` given `\((Σ, Q)\)` and data (forward filter, backward sample).&lt;br&gt;
+  – Draw **Σ** (Inverse-Wishart in the homoskedastic case) and **Q** (IW/IG depending on parameterization). &lt;br&gt;
+  – Iterate until convergence; summarize posteriors and produce density forecasts/IRFs from the draws. &lt;br&gt;
 
-• Why (and when) use the homoskedastic version
-  – **Pros:** simpler and faster than TVP–SV; fewer variance states to sample; good baseline when volatility appears roughly stable. :contentReference[oaicite:7]{index=7}
-  – **Caution:** if shock volatility actually changes over time, a homoskedastic TVP–VAR can **misattribute volatility shifts to coefficient drift**. Many studies find that allowing **stochastic volatility** improves fit/forecasts in macro data. :contentReference[oaicite:8]{index=8}
+* **Why (and when) use the homoskedastic version**
+  – **Pros:** simpler and faster than TVP–SV; fewer variance states to sample; good baseline when volatility appears roughly stable. &lt;br&gt;
+  
+  – **Caution:** if shock volatility actually changes over time, a homoskedastic TVP–VAR can **misattribute volatility shifts to coefficient drift**. Many studies find that allowing **stochastic volatility** improves fit/forecasts in macro data. &lt;br&gt;
 
-• Practical tips to mention
-  – Start with homoskedastic TVP–VAR for speed, then **test against TVP–SV** using marginal likelihood or OOS forecasts. :contentReference[oaicite:9]{index=9}
-  – Place shrinkage on **Q** to avoid spurious time variation; check MCMC diagnostics (trace, R-hat, ESS) and VAR stability across draws. :contentReference[oaicite:10]{index=10}
+* **Practical tips to mention**
+  – Start with homoskedastic TVP–VAR for speed, then **test against TVP–SV** using marginal likelihood or OOS forecasts. &lt;br&gt;
+  – Place shrinkage on **Q** to avoid spurious time variation; check MCMC diagnostics (trace, R-hat, ESS) and VAR stability across draws.&lt;br&gt;
 
-• One-liner
+* **One-liner**
   – “Homoskedastic TVP–VARs let **relationships evolve** while keeping **shock variance fixed**—a fast, transparent baseline before escalating to full TVP-SV.” 
 
 ---
@@ -3002,46 +3000,49 @@ The TVP–VAR’s state‐space formulation consists of two linked parts: an obs
 ???
 # Heteroskedastic TVP–VARs: Model Structure — presenter notes
 
-• What “heteroskedastic” adds
-  – Unlike the homoskedastic case, the **shock variances change over time** (stochastic volatility). We also allow the **contemporaneous relationships** among variables to evolve through a time-varying triangular impact matrix. Together, this lets both **transmission** and **volatility** vary. :contentReference[oaicite:0]{index=0}
-
-• Pieces of the decomposition (say, not derive)
-  – `\(A_t\)` (lower-triangular, ones on the diagonal): maps **structural shocks** into reduced-form shocks; time variation in A_t means **instantaneous interactions** among variables can drift (policy/information structure can change). 
-  
-  – `\(Λ_t = diag(exp(h_{1t}),…,exp(h_{nt}))\)`: diagonal matrix of **time-varying variances**; h_t are the **log-volatilities**. This is the stochastic-volatility (SV) block. 
-  
-  – Together, the **time-varying covariance** is `\(Σ_t = A_t^{-1} Λ_t A_t^{-⊤}\)`; `\(e_t\)` are `\(i.i.d\)`. standard shocks. (Don’t read the math on the slide—just give the roles.) 
+* **What “heteroskedastic” adds**
+  – Unlike the homoskedastic case, the **shock variances change over time** (stochastic volatility). We also allow the **contemporaneous relationships** among variables to evolve through a time-varying triangular impact matrix. Together, this lets both **transmission** and **volatility** vary.&lt;br&gt; 
   
 
-• State evolution (what moves over time)
-  – **Free elements of** `\(A_t\)` follow a **random walk** (or very persistent AR(1)): slow drift captures changing contemporaneous structure. 
+* **Pieces of the decomposition (say, not derive)**
+ 1. `\(A_t\)` (lower-triangular, ones on the diagonal): maps **structural shocks** into reduced-form shocks; time variation in A_t means **instantaneous interactions** among variables can drift (policy/information structure can change). &lt;br&gt;
   
-  – **Log-volatilities h_t** follow an **AR(1)** around a mean μ (persistence Φ): this delivers smooth volatility regimes (quiet vs turbulent periods). 
+  2. `\(Λ_t = diag(exp(h_{1t}),…,exp(h_{nt}))\)`: diagonal matrix of **time-varying variances**; h_t are the **log-volatilities**. This is the stochastic-volatility (SV) block.&lt;br&gt; 
+  
+  3. Together, the **time-varying covariance** is `\(Σ_t = A_t^{-1} Λ_t A_t^{-⊤}\)`; `\(e_t\)` are `\(i.i.d\)`. standard shocks. &lt;br&gt;
   
 
-• Estimation workflow you’ll mention
-  – Treat as a **state-space** model and use **Bayesian Gibbs**:
-      1) draw coefficient paths (FFBS/Kalman smoother),
-      2) draw A_t states,
-      3) draw SV states (h_t) with the **KSC** mixture sampler,
-      4) update variance blocks and hyperparameters.
-    Correct **step ordering** (Del Negro–Primiceri) improves mixing in TVP-SV VARs. 
+*  State evolution (what moves over time)
+  – **Free elements of** `\(A_t\)` follow a **random walk** (or very persistent AR(1)): slow drift captures changing contemporaneous structure. &lt;br&gt;
+  
+  – **Log-volatilities h_t** follow an **AR(1)** around a mean μ (persistence Φ): this delivers smooth volatility regimes (quiet vs turbulent periods). &lt;br&gt;
+  
 
-• Why this specification matters
-  – If we keep Σ fixed, volatility spikes can be misread as parameter change; allowing **time-varying Σ_t** reduces that confounding and typically improves fit/forecasts in macro/finance data. 
+* Estimation workflow you’ll mention
+  – Treat as a **state-space** model and use **Bayesian Gibbs**:&lt;br&gt;
+      1) draw coefficient paths (FFBS/Kalman smoother),&lt;br&gt;
+      2) draw A_t states,&lt;br&gt;
+      3) draw SV states (h_t) with the **KSC** mixture sampler,&lt;br&gt;
+      4) update variance blocks and hyperparameters.&lt;br&gt;
+    Correct **step ordering** (Del Negro–Primiceri) improves mixing in TVP-SV VARs. &lt;br&gt;
 
-• Identification note (one sentence)
-  – With a triangular A_t we get a time-varying **Cholesky** identification (ordering matters); alternative schemes (e.g., time-varying sign or external instruments) can be layered if needed.
+• Why this specification matters&lt;br&gt;
+  – If we keep Σ fixed, volatility spikes can be misread as parameter change; allowing **time-varying Σ_t** reduces that confounding and typically improves fit/forecasts in macro/finance data. &lt;br&gt;
 
-• Take-away line
-  – “Heteroskedastic TVP-VARs let the **instantaneous network** (A_t) and **uncertainty** `\((Λ_t/Σ_t)\)` evolve together—so we can tell whether instability comes from changing transmission, changing volatility, or both.”
+• Identification note (one sentence)&lt;br&gt;
+  – With a triangular A_t we get a time-varying **Cholesky** identification (ordering matters); alternative schemes (e.g., time-varying sign or external instruments) can be layered if needed.&lt;br&gt;
+
+• Take-away line&lt;br&gt;
+  – “Heteroskedastic TVP-VARs let the **instantaneous network** (A_t) and **uncertainty** `\((Λ_t/Σ_t)\)` evolve together—so we can tell whether instability comes from changing transmission, changing volatility, or both.”&lt;br&gt;
 
 
 
 ---
 # Heteroskedastic TVP–VARs: Model Structure
+
 **Where:**  
 - `\((y_t)\)` is the `\((N\times 1)\)` vector of observed variables; \(Z_t\) stacks lags and exogenous predictors; `\((\beta_t)\)` is the `\((K\times 1)\)` vector of time‑varying coefficients.  
+- `\((\varepsilon_t)\)` are reduced‑form shocks with time‑varying covariance `\((\Sigma_t)\)`; `\((u_t)\)` are coefficient innovations.
 - `\((A_t)\)` is lower‑triangular with ones on the diagonal (recursive identification); `\((a_t)\)` collects its free off‑diagonal elements.  
 - `\((Q,S,W)\)` are state‑innovation covariance matrices; `\((h_t)\)` are log variances driving `\((\Lambda_t)\)`.  
 
@@ -3052,40 +3053,48 @@ Carter–Kohn FFBS draws for `\((beta_{1:T})\)` (and `\((a_{1:T})\)`); SV block 
 # Heteroskedastic TVP–VARs: Model Structure — presenter notes
 
 • What “heteroskedastic” adds  
-  – Unlike the homoskedastic TVP–VAR, here the **shock variances and covariances change over time** (stochastic volatility). We also allow the **instantaneous (contemporaneous) relations** among variables to evolve via a time-varying triangular impact matrix. This lets the model capture changes in **transmission** *and* **uncertainty** jointly. :contentReference[oaicite:0]{index=0}
+  – Unlike the homoskedastic TVP–VAR, here the **shock variances and covariances change over time** (stochastic volatility). We also allow the **instantaneous (contemporaneous) relations** among variables to evolve via a time-varying triangular impact matrix. This lets the model capture changes in **transmission** *and* **uncertainty** jointly. &lt;br&gt;
 
-• Key building blocks (speak roles, don’t read equations)  
-  – `\(y\)`*: N×1 vector of observed variables (e.g., inflation, output, rate).  
-  – `\(Z_t\)`: N×K predictor matrix (VAR lags + optional exogenous terms).  
-  – `\(β_t\)`: K×1 vector of **time-varying coefficients**; evolves smoothly over time (random-walk/near-RW). This is the “time-varying parameter” part. :contentReference[oaicite:1]{index=1}  
-  – `\(ε_t\)` with **Σₜ**: reduced-form shocks with **time-varying** covariance; Σₜ is built from a factorization with a **time-varying lower-triangular Aₜ** (ones on the diagonal) and a **diagonal volatility matrix Λₜ** whose entries are exp(hₜ). This is the standard Primiceri (2005) decomposition. :contentReference[oaicite:2]{index=2}
+• Key building blocks (speak roles, don’t read equations) &lt;br&gt; 
+  – `\(y\)`*: N×1 vector of observed variables (e.g., inflation, output, rate). &lt;br&gt; 
+  – `\(Z_t\)`: N×K predictor matrix (VAR lags + optional exogenous terms).  &lt;br&gt;
+  – `\(β_t\)`: K×1 vector of **time-varying coefficients**; evolves smoothly over time (random-walk/near-RW). This is the “time-varying parameter” part.&lt;br&gt; 
+  
+  – `\(ε_t\)` with **Σₜ**: reduced-form shocks with **time-varying** covariance; Σₜ is built from a factorization with a **time-varying lower-triangular Aₜ** (ones on the diagonal) and a **diagonal volatility matrix Λₜ** whose entries are exp(hₜ). This is the standard Primiceri (2005) decomposition&lt;br&gt;.
+  – `\(u_t\)` with Q: shocks that move β_t from one period to the next; Q controls how fast coefficients can drift (small Q → nearly constant parameters; larger Q → more flexibility).&lt;br&gt;
 
-• States that evolve over time (random-walk / AR(1) style)  
-  – **Free elements of Aₜ** (collect them in aₜ): allow **contemporaneous structure** to drift over time (policy/information structure can change).  
-  – **Log-volatilities hₜ** (diagonal of Λₜ): typically follow **AR(1)** dynamics so volatility moves in persistent regimes (quiet vs turbulent periods). These two together produce **Σₜ = Aₜ⁻¹ Λₜ Aₜ⁻ᵀ**. :contentReference[oaicite:3]{index=3}
+• States that evolve over time (random-walk / AR(1) style)  &lt;br&gt;
+  – **Free elements of Aₜ** (collect them in aₜ): allow **contemporaneous structure** to drift over time (policy/information structure can change).  &lt;br&gt;
+  – **Log-volatilities hₜ** (diagonal of Λₜ): typically follow **AR(1)** dynamics so volatility moves in persistent regimes (quiet vs turbulent periods). These two together produce **Σₜ = Aₜ⁻¹ Λₜ Aₜ⁻ᵀ**&lt;br&gt;
+  
 
-• Why we need this specification  
-  – If we fixed Σ over time, **volatility shifts could be misread as parameter change**; letting Σₜ vary (SV) removes that confounding and typically improves fit and policy-relevant inference. Seminal applications show both **coefficients** and **volatility** change through time. :contentReference[oaicite:4]{index=4}
+• Why we need this specification  &lt;br&gt;
+  – If we fixed Σ over time, **volatility shifts could be misread as parameter change**; letting Σₜ vary (SV) removes that confounding and typically improves fit and policy-relevant inference. Seminal applications show both **coefficients** and **volatility** change through time.&lt;br&gt;
+  
 
-• Bayesian estimation — what one Gibbs iteration does (very high level)  
-  1) **Draw β₁:ₜ | (Σₜ, Q, data)** using **FFBS** (Carter–Kohn): filter forward with Kalman filter, then sample the full β-path backward. This block update is efficient in high-dimensional state-space models. :contentReference[oaicite:5]{index=5}  
-  2) **Draw the Aₜ states** (free elements aₜ) given β and SV states; these are conditionally Gaussian state updates because Aₜ enters linearly after suitable re-writing. (Primiceri’s TVP-SV framework.) :contentReference[oaicite:6]{index=6}  
-  3) **Draw the SV (hₜ) states** using the **Kim–Shephard–Chib (KSC) mixture** sampler (approximates the log-χ² density with a normal mixture to sample all volatilities efficiently). :contentReference[oaicite:7]{index=7}  
+• Bayesian estimation — what one Gibbs iteration does (very high level)  &lt;br&gt;
+  1) **Draw β₁:ₜ | (Σₜ, Q, data)** using **FFBS** (Carter–Kohn): filter forward with Kalman filter, then sample the full β-path backward. This block update is efficient in high-dimensional state-space models. &lt;br&gt;  
+  2) **Draw the Aₜ states** (free elements aₜ) given β and SV states; these are conditionally Gaussian state updates because Aₜ enters linearly after suitable re-writing. (Primiceri’s TVP-SV framework.)&lt;br&gt;
+  
+  3) **Draw the SV (hₜ) states** using the **Kim–Shephard–Chib (KSC) mixture** sampler (approximates the log-χ² density with a normal mixture to sample all volatilities efficiently).&lt;br&gt; 
+  
   4) **Draw variance blocks**:  
-     – **Q** for the β-evolution (IW/IG depending on parameterization); tight Q ⇒ slow coefficient drift, loose Q ⇒ faster drift. :contentReference[oaicite:8]{index=8}  
-     – **S** for the Aₜ-state innovations and **W** for the hₜ-state innovations (typically IG/IW priors in practice). :contentReference[oaicite:9]{index=9}  
-  5) **Respect the corrected step ordering**: Del Negro &amp; Primiceri show the original algorithm’s ordering should be changed for proper mixing/stability in TVP-SV VARs—**same steps, different order**. This is standard practice now. :contentReference[oaicite:10]{index=10}
+     – **Q** for the β-evolution (IW/IG depending on parameterization); tight Q ⇒ slow coefficient drift, loose Q ⇒ faster drift.&lt;br&gt;
+     
+     – **S** for the Aₜ-state innovations and **W** for the hₜ-state innovations (typically IG/IW priors in practice). &lt;br&gt;
+     
+  5) **Respect the corrected step ordering**: Del Negro &amp; Primiceri show the original algorithm’s ordering should be changed for proper mixing/stability in TVP-SV VARs—**same steps, different order**. This is standard practice now. &lt;br&gt;
 
-• Identification and interpretation (one sentence)  
-  – With **lower-triangular Aₜ** we have a **time-varying Cholesky** identification (ordering matters); alternative identification schemes (e.g., sign or external instruments) can be layered if the application requires it. :contentReference[oaicite:11]{index=11}
+• Identification and interpretation (one sentence)  &lt;br&gt;
+  – With **lower-triangular Aₜ** we have a **time-varying Cholesky** identification (ordering matters); alternative identification schemes (e.g., sign or external instruments) can be layered if the application requires it. &lt;br&gt;
 
-• Practical pointers to say aloud  
-  – Start with reasonable shrinkage on the **Q/S/W** blocks to avoid spurious time variation; relax only if the data demand it.  
-  – Monitor **MCMC diagnostics** (trace/R-hat/ESS) and **VAR stability** (roots inside unit circle) draw-by-draw before reporting IRFs/forecasts.  
-  – For large systems, surveys recommend global–local shrinkage or hierarchical tightness to keep the sampler well-behaved. :contentReference[oaicite:12]{index=12}
+• Practical pointers to say aloud  &lt;br&gt;
+  – Start with reasonable shrinkage on the **Q/S/W** blocks to avoid spurious time variation; relax only if the data demand it.  &lt;br&gt;
+  – Monitor **MCMC diagnostics** (trace/R-hat/ESS) and **VAR stability** (roots inside unit circle) draw-by-draw before reporting IRFs/forecasts.  &lt;br&gt;
+  – For large systems, surveys recommend global–local shrinkage or hierarchical tightness to keep the sampler well-behaved. &lt;br&gt;
 
-• One-liner close  
-  – “Heteroskedastic TVP-VARs let the **transmission matrix** and **volatility** evolve together, so we can tell whether instability comes from changing dynamics, changing uncertainty, or both.” 
+• One-liner close  &lt;br&gt;
+  – “Heteroskedastic TVP-VARs let the **transmission matrix** and **volatility** evolve together, so we can tell whether instability comes from changing dynamics, changing uncertainty, or both.”&lt;br&gt; 
 
 
 ---
@@ -3119,25 +3128,25 @@ Carter–Kohn FFBS draws for `\((beta_{1:T})\)` (and `\((a_{1:T})\)`); SV block 
 ???
 # Parameter Proliferation and Shrinkage — presenter notes (TVP–VAR)
 
-• Why proliferation is severe  
-  – In a TVP–VAR every coefficient becomes a **time series**: instead of one β, we have a whole **path {β₁,…,β_T}**. That multiplies the parameter count and makes naïve estimation unstable—especially in medium/large systems. Surveys and applications stress that TVP models are **high-dimensional** and need regularization. :contentReference[oaicite:0]{index=0}
+• Why proliferation is severe  &lt;br&gt;
+  – In a TVP–VAR every coefficient becomes a **time series**: instead of one β, we have a whole **path {β₁,…,β_T}**. That multiplies the parameter count and makes naïve estimation unstable—especially in medium/large systems. Surveys and applications stress that TVP models are **high-dimensional** and need regularization.&lt;br&gt;
 
-• Role of the state-equation prior (baseline shrinkage)  
-  – The random-walk evolution for coefficients adds a **hierarchical prior** through the innovation covariance **Q**. Small elements of Q **shrink the drift** in βₜ toward constancy (i.e., toward a fixed-parameter VAR); larger Q permits faster structural change. Practical TVP algorithms emphasize setting/drawing Q carefully to avoid spurious time variation. :contentReference[oaicite:1]{index=1}
+• Role of the state-equation prior (baseline shrinkage)  &lt;br&gt;
+  – The random-walk evolution for coefficients adds a **hierarchical prior** through the innovation covariance **Q**. Small elements of Q **shrink the drift** in βₜ toward constancy (i.e., toward a fixed-parameter VAR); larger Q permits faster structural change. Practical TVP algorithms emphasize setting/drawing Q carefully to avoid spurious time variation. &lt;br&gt;
 
-• Shrinkage on the coefficients (β)  
-  – **Minnesota prior (and variants):** centers cross-lags near 0, keeps own first lags relatively loose, and imposes **lag-decay**—a proven default for VARs; hierarchical versions learn the tightness from the data. :contentReference[oaicite:2]{index=2}  
-  – **Adaptive/Global–Local priors (e.g., Normal–Gamma, Horseshoe):** add a **global** tightness plus **local** scales per coefficient so irrelevant terms are shrunk hard while important ones “escape” shrinkage—effective in large (S)V VARs. :contentReference[oaicite:3]{index=3}
+• Shrinkage on the coefficients (β)  &lt;br&gt;
+  – **Minnesota prior (and variants):** centers cross-lags near 0, keeps own first lags relatively loose, and imposes **lag-decay**—a proven default for VARs; hierarchical versions learn the tightness from the data. &lt;br&gt;
+  – **Adaptive/Global–Local priors (e.g., Normal–Gamma, Horseshoe):** add a **global** tightness plus **local** scales per coefficient so irrelevant terms are shrunk hard while important ones “escape” shrinkage—effective in large (S)V VARs.&lt;br&gt;
 
-• Why these priors matter in TVP settings  
-  – Time-varying models can be **over-parameterized**; modern work shows global–local shrinkage (NG, Horseshoe) improves inference/forecasting by inducing sparsity while allowing occasional large movements in βₜ. :contentReference[oaicite:4]{index=4}
+• Why these priors matter in TVP settings &lt;br&gt; 
+  – Time-varying models can be **over-parameterized**; modern work shows global–local shrinkage (NG, Horseshoe) improves inference/forecasting by inducing sparsity while allowing occasional large movements in βₜ.&lt;br&gt;
 
-• Practical guidance to say aloud  
+• Practical guidance to say aloud &lt;br&gt; 
   – Start with Minnesota-style structure; if k and p are large, **upgrade to adaptive (global–local) shrinkage**.  
-  – Keep **Q relatively tight** unless the data clearly demand change—then let the sampler relax it; this controls spurious drift in βₜ. :contentReference[oaicite:5]{index=5}
+  – Keep **Q relatively tight** unless the data clearly demand change—then let the sampler relax it; this controls spurious drift in βₜ.&lt;br&gt;
 
-• One-liner  
-  – “TVP–VARs explode in parameters; **hierarchical and adaptive shrinkage** (on β and on Q) are the tools that keep the model stable and forecast-useful.” 
+• One-liner &lt;br&gt; 
+  – “TVP–VARs explode in parameters; **hierarchical and adaptive shrinkage** (on β and on Q) are the tools that keep the model stable and forecast-useful.”&lt;br&gt; 
 
 ---
 # Shrinkage and Prior Choice
@@ -3160,30 +3169,32 @@ Carter–Kohn FFBS draws for `\((beta_{1:T})\)` (and `\((a_{1:T})\)`); SV block 
 ???
 # Shrinkage and Prior Choice — presenter notes (TVP–VAR)
 
-• Why priors on **Q** matter  
-  – In TVP models, βₜ follows a (near) random walk. If **Q** is weakly or non-informative, the sampler can put too much mass on **large Q**, letting coefficients wander and **overfit** transitory noise. Standard guidance: use **tighter priors on the β-evolution variance** than on contemporaneous structure or volatility to avoid implausible drift. :contentReference[oaicite:0]{index=0}
+• Why priors on **Q** matter  &lt;br&gt;
+  – In TVP models, βₜ follows a (near) random walk. If **Q** is weakly or non-informative, the sampler can put too much mass on **large Q**, letting coefficients wander and **overfit** transitory noise. Standard guidance: use **tighter priors on the β-evolution variance** than on contemporaneous structure or volatility to avoid implausible drift. &lt;br&gt;
 
 • What “tight on Q” does (plain English)  
   – Small Q ⇒ coefficients change **slowly**, trending only when data strongly demand it.  
-  – Large Q ⇒ coefficients **wiggle a lot**, which can look like frequent “policy shifts” even when relationships are stable. Simulation and survey evidence emphasize this risk and the role of shrinkage. :contentReference[oaicite:1]{index=1}
+  – Large Q ⇒ coefficients **wiggle a lot**, which can look like frequent “policy shifts” even when relationships are stable. Simulation and survey evidence emphasize this risk and the role of shrinkage. &lt;br&gt;
 
 • Choosing hyperparameters and shrinkage priors  
-  – **Minnesota-style shrinkage** for VAR coefficients: center cross-lags near 0, keep own first lag relatively loose, and impose lag-decay; hierarchical versions **learn tightness** from the data. Useful default even in large systems. :contentReference[oaicite:2]{index=2}  
-  – **SSVS (Stochastic Search Variable Selection)**: mixture/indicator prior that probabilistically switches coefficients “on/off,” encouraging sparse dynamics while allowing important terms to survive. Often paired with Minnesota or used on blocks (cross-lags, higher lags). :contentReference[oaicite:3]{index=3}  
-  – In high-dimensional TVP-VARs, surveys show that combining hierarchical/global–local shrinkage with careful Q-priors stabilizes estimation and improves forecasts. :contentReference[oaicite:4]{index=4}
+  – **Minnesota-style shrinkage** for VAR coefficients: center cross-lags near 0, keep own first lag relatively loose, and impose lag-decay; hierarchical versions **learn tightness** from the data. Useful default even in large systems. &lt;br&gt; 
+  
+  – **SSVS (Stochastic Search Variable Selection)**: mixture/indicator prior that probabilistically switches coefficients “on/off,” encouraging sparse dynamics while allowing important terms to survive. Often paired with Minnesota or used on blocks (cross-lags, higher lags).&lt;br&gt;
+  
+  – In high-dimensional TVP-VARs, surveys show that combining hierarchical/global–local shrinkage with careful Q-priors stabilizes estimation and improves forecasts. &lt;br&gt;
 
 • Even with shrinkage, IRFs will move over time  
-  – Shrinkage **controls noise**, it doesn’t force invariance. When coefficients and/or volatilities truly evolve, **time-varying impulse responses** can differ a lot across dates; that is the point of TVP modeling. (Empirical overviews report large changes in IRFs across regimes.) :contentReference[oaicite:5]{index=5}
+  – Shrinkage **controls noise**, it doesn’t force invariance. When coefficients and/or volatilities truly evolve, **time-varying impulse responses** can differ a lot across dates; that is the point of TVP modeling. (Empirical overviews report large changes in IRFs across regimes.)&lt;br&gt;
 
-• What to say you’ll do in practice  
-  – Start with Minnesota-type priors and **tight Q**; run prior-sensitivity checks (loosening Q, or allowing SV vs. homoskedasticity).  
-  – Prefer **hierarchical** tightness so the data tune overall shrinkage; consider SSVS for cross-lags/higher lags.  
-  – Judge prior settings by **out-of-sample forecasts**, stability of draws, and plausibility of **time-varying IRFs** (not just in-sample fit). :contentReference[oaicite:6]{index=6}
+• What to say you’ll do in practice  &lt;br&gt;
+  – Start with Minnesota-type priors and **tight Q**; run prior-sensitivity checks (loosening Q, or allowing SV vs. homoskedasticity).  &lt;br&gt;
+  – Prefer **hierarchical** tightness so the data tune overall shrinkage; consider SSVS for cross-lags/higher lags.  &lt;br&gt;
+  – Judge prior settings by **out-of-sample forecasts**, stability of draws, and plausibility of **time-varying IRFs** (not just in-sample fit). &lt;br&gt;
 
 
-This slide emphasizes that allowing coefficients to drift freely in a time-varying model can lead to over-fitting unless we constrain how much they’re allowed to move. If you choose completely diffuse (non-informative) priors for the coefficient‐innovation variance𝑄, the model may place too much weight on large values of Q, causing coefficients to wander wildly and impulse responses to swing erratically. 
+This slide emphasizes that allowing coefficients to drift freely in a time-varying model can lead to over-fitting unless we constrain how much they’re allowed to move. If you choose completely diffuse (non-informative) priors for the coefficient‐innovation variance𝑄, the model may place too much weight on large values of Q, causing coefficients to wander wildly and impulse responses to swing erratically. &lt;br&gt;
 
-- To prevent this, practitioners impose shrinkage priors—for example, Minnesota-style priors that pull parameter changes toward zero, or Stochastic Search Variable Selection (SSVS) priors that encourage many small coefficient innovations. Even with shrinkage, however, the very nature of a time-varying framework means that the dynamic responses to shocks can still vary substantially over time; the goal of shrinkage is simply to ensure that such variation is driven by genuine data evidence rather than noise.
+- To prevent this, practitioners impose shrinkage priors—for example, Minnesota-style priors that pull parameter changes toward zero, or Stochastic Search Variable Selection (SSVS) priors that encourage many small coefficient innovations. Even with shrinkage, however, the very nature of a time-varying framework means that the dynamic responses to shocks can still vary substantially over time; the goal of shrinkage is simply to ensure that such variation is driven by genuine data evidence rather than noise.&lt;br&gt;
 
 ---
 # Combining TVP with Minnesota or SSVS Priors
@@ -3205,39 +3216,41 @@ This slide emphasizes that allowing coefficients to drift freely in a time-varyi
 ???
 # Combining TVP with Minnesota or SSVS Priors — presenter notes
 
-• Why combine?
+• Why combine?&lt;br&gt;
   – TVP–VARs are parameter-rich; **shrinkage** keeps them stable and forecast-useful.
-  – Two popular options: **Minnesota** (structured shrinkage by lag/block) and **SSVS** (spike-and-slab variable selection). :contentReference[oaicite:0]{index=0}
+  – Two popular options: **Minnesota** (structured shrinkage by lag/block) and **SSVS** (spike-and-slab variable selection). &lt;br&gt;
 
 • Minnesota inside TVP
   – Use Minnesota beliefs to **center coefficients** and scale variances:
     • Own first lags relatively loose (persistence), cross/higher lags shrunk near 0.  
-    • Hyperparameters (overall tightness, lag decay, cross-lag penalty) can be set or **learned hierarchically**. :contentReference[oaicite:1]{index=1}
-  – In TVP form, you can (i) place Minnesota on the **initial state** \(β₀\) and on **state-innovation scales** (so drift is small for cross/higher lags), or (ii) use a **mean-reverting evolution** where coefficients drift toward a Minnesota mean \(β₀\) (random-walk is the special case when mean reversion ≈ 0). :contentReference[oaicite:2]{index=2}
-  – Practical effect: lets **own-lag persistence “breathe”** while discouraging noisy cross-lag movement over time. :contentReference[oaicite:3]{index=3}
+    • Hyperparameters (overall tightness, lag decay, cross-lag penalty) can be set or **learned hierarchically**. &lt;br&gt;
+  – In TVP form, you can (i) place Minnesota on the **initial state** \(β₀\) and on **state-innovation scales** (so drift is small for cross/higher lags), or (ii) use a **mean-reverting evolution** where coefficients drift toward a Minnesota mean \(β₀\) (random-walk is the special case when mean reversion ≈ 0). &lt;br&gt;
+    `$$\beta_{t+1} = A_0 \beta_t + (I - A_0) \beta_0 + u_t$$`
+    – Here, \(A₀\) controls mean reversion (diagonal with elements in [0,1]); \(β₀\) is the Minnesota prior mean. Setting \(A₀\) near identity gives near-RW drift; smaller values pull coefficients back to \(β₀\). &lt;br&gt;
+  – Practical effect: lets **own-lag persistence “breathe”** while discouraging noisy cross-lag movement over time. &lt;br&gt;
 
 • SSVS inside TVP
-  – **Stochastic Search Variable Selection** uses a **two-variance mixture** per coefficient: a tight “spike” (near zero) vs a loose “slab” (free). Binary indicators are sampled in the Gibbs loop to switch terms on/off. :contentReference[oaicite:4]{index=4}
-  – In VARs (and TVP-VARs), SSVS efficiently selects **lags/blocks/cross-effects**, yielding sparse dynamics without manual pre-testing. Applications demonstrate SSVS for VAR restrictions and forecasting (including TVP specifications). :contentReference[oaicite:5]{index=5}
-  – Implementation sketch: sample (β-paths | indicators), then **indicators | β**, then variance blocks; repeat. The selection can also be put on **elements of Q** so only a subset of coefficients is allowed to vary over time. :contentReference[oaicite:6]{index=6}
+  – **Stochastic Search Variable Selection** uses a **two-variance mixture** per coefficient: a tight “spike” (near zero) vs a loose “slab” (free). Binary indicators are sampled in the Gibbs loop to switch terms on/off. &lt;br&gt;
+  – In VARs (and TVP-VARs), SSVS efficiently selects **lags/blocks/cross-effects**, yielding sparse dynamics without manual pre-testing. Applications demonstrate SSVS for VAR restrictions and forecasting (including TVP specifications). &lt;br&gt;
+  – Implementation sketch: sample (β-paths | indicators), then **indicators | β**, then variance blocks; repeat. The selection can also be put on **elements of Q** so only a subset of coefficients is allowed to vary over time. &lt;br&gt;
 
-• When to prefer which?
-  – **Minnesota**: transparent structure, fast, great baseline; use hierarchical tuning of tightness for robustness. :contentReference[oaicite:7]{index=7}
-  – **SSVS**: when the system is large and you suspect many **irrelevant cross/higher lags**; promotes sparsity and can improve forecasts. :contentReference[oaicite:8]{index=8}
-  – They are **complementary**: Minnesota for sensible scaling/means; SSVS on top for **automatic exclusion** of weak terms.
+• When to prefer which?&lt;br&gt;
+  – **Minnesota**: transparent structure, fast, great baseline; use hierarchical tuning of tightness for robustness.&lt;br&gt;
+  – **SSVS**: when the system is large and you suspect many **irrelevant cross/higher lags**; promotes sparsity and can improve forecasts. &lt;br&gt;
+  – They are **complementary**: Minnesota for sensible scaling/means; SSVS on top for **automatic exclusion** of weak terms.&lt;br&gt;
 
 • Practical tips to say aloud
-  – Start Minnesota-TVP with **tight Q** on cross/higher lags; compare to SSVS-TVP by out-of-sample forecasts and time-varying IRFs. :contentReference[oaicite:9]{index=9}
-  – Report sensitivity to (i) overall tightness and lag decay, (ii) SSVS spike/slab variances; both sets of hyperparameters are interpretable and can be **data-driven**. :contentReference[oaicite:10]{index=10}
+  – Start Minnesota-TVP with **tight Q** on cross/higher lags; compare to SSVS-TVP by out-of-sample forecasts and time-varying IRFs.&lt;br&gt;
+  – Report sensitivity to (i) overall tightness and lag decay, (ii) SSVS spike/slab variances; both sets of hyperparameters are interpretable and can be **data-driven**. &lt;br&gt;
 
-• One-liner
-  – “Minnesota gives structured, interpretable shrinkage; SSVS adds automatic sparsity. In TVP-VARs, combining them yields **stable yet adaptive** time-varying dynamics.” 
+• One-liner&lt;br&gt;
+  – “Minnesota gives structured, interpretable shrinkage; SSVS adds automatic sparsity. In TVP-VARs, combining them yields **stable yet adaptive** time-varying dynamics.” &lt;br&gt;
 
-- Combining TVP–VARs with shrinkage priors involves embedding your time-varying coefficient framework within a structure that tethers parameter drift to economically plausible bounds. Under a Minnesota-style prior, you impose tighter variance on cross-equation and higher-lag coefficients—shrinking them toward zero unless the data strongly support movement—while still allowing each coefficient to evolve over time. 
+- Combining TVP–VARs with shrinkage priors involves embedding your time-varying coefficient framework within a structure that tethers parameter drift to economically plausible bounds. Under a Minnesota-style prior, you impose tighter variance on cross-equation and higher-lag coefficients—shrinking them toward zero unless the data strongly support movement—while still allowing each coefficient to evolve over time. &lt;br&gt;
 
-- Alternatively, an SSVS prior treats each coefficient innovation as a mixture of a “spike” (near zero variance) and a “slab” (larger variance), effectively selecting only those coefficients whose time-variation is warranted by the evidence and setting the rest (temporarily) to zero. 
+- Alternatively, an SSVS prior treats each coefficient innovation as a mixture of a “spike” (near zero variance) and a “slab” (larger variance), effectively selecting only those coefficients whose time-variation is warranted by the evidence and setting the rest (temporarily) to zero. &lt;br&gt;
 
-- In both cases, you calibrate hyperparameters—either the Minnesota decay rates or the spike-and-slab variances and inclusion probabilities—to control the degree of allowed flexibility. This layered approach preserves the ability of TVP models to capture genuine structural change (“bad policy”) while guarding against over-fitting driven by noise (“bad luck”), promoting parsimonious, robust inference in high-dimensional VARs.
+- In both cases, you calibrate hyperparameters—either the Minnesota decay rates or the spike-and-slab variances and inclusion probabilities—to control the degree of allowed flexibility. This layered approach preserves the ability of TVP models to capture genuine structural change (“bad policy”) while guarding against over-fitting driven by noise (“bad luck”), promoting parsimonious, robust inference in high-dimensional VARs.&lt;br&gt;
 
 ---
 # Hierarchical Priors and Layered State Eq
@@ -3255,15 +3268,15 @@ This slide emphasizes that allowing coefficients to drift freely in a time-varyi
 
 ???
 
-- Hierarchical priors augment the basic TVP framework by introducing an extra layer of latent states that govern how the time-varying coefficients themselves evolve, enabling the model to “borrow strength” across related equations or units.
+- Hierarchical priors augment the basic TVP framework by introducing an extra layer of latent states that govern how the time-varying coefficients themselves evolve, enabling the model to “borrow strength” across related equations or units.&lt;br&gt;
 
-- Concretely, instead of treating each coefficient path as an independent random walk, one posits that they are driven by a lower-dimensional set of factors or shared parameters—often denoted by a common state vector θₜ—multiplied by a loading matrix A₀.
+- Concretely, instead of treating each coefficient path as an independent random walk, one posits that they are driven by a lower-dimensional set of factors or shared parameters—often denoted by a common state vector θₜ—multiplied by a loading matrix A₀.&lt;br&gt;
 
-- This construction means that any group of coefficients can fluctuate coherently according to overarching dynamics captured by θₜ, while idiosyncratic movements are still accounted for via individual innovations uₜ.
+- This construction means that any group of coefficients can fluctuate coherently according to overarching dynamics captured by θₜ, while idiosyncratic movements are still accounted for via individual innovations uₜ.&lt;br&gt;
 
-- In panel-VAR settings or models with many related variables, this layered approach drastically reduces the effective number of parameters, pools information across series, and focuses estimation on common structural shifts rather than noise. 
+- In panel-VAR settings or models with many related variables, this layered approach drastically reduces the effective number of parameters, pools information across series, and focuses estimation on common structural shifts rather than noise. &lt;br&gt;
 
-- The result is a parsimonious yet flexible specification that can adapt to evolving relationships both at the group level (through θₜ) and at the individual coefficient level (through uₜ), improving estimation stability and interpretability in high-dimensional TVP-VARs.
+- The result is a parsimonious yet flexible specification that can adapt to evolving relationships both at the group level (through θₜ) and at the individual coefficient level (through uₜ), improving estimation stability and interpretability in high-dimensional TVP-VARs.&lt;br&gt;
 
 
 
@@ -3296,47 +3309,51 @@ This slide emphasizes that allowing coefficients to drift freely in a time-varyi
 - See Koop &amp; Potter (2009) for algorithmic details.
 
 ???
-- Inequality restrictions in TVP–VARs are imposed to ensure that, at each point in time, the VAR remains stationary by keeping the roots of its characteristic polynomial outside the unit circle—otherwise impulse responses can explode and economic interpretation breaks down. 
+- Inequality restrictions in TVP–VARs are imposed to ensure that, at each point in time, the VAR remains stationary by keeping the roots of its characteristic polynomial outside the unit circle—otherwise impulse responses can explode and economic interpretation breaks down. &lt;br&gt;
 
 
-- Practitioners incorporate these restrictions either by truncating the prior so that disallowed coefficient values have zero probability or by rejecting any MCMC draw that yields instability. 
+- Practitioners incorporate these restrictions either by truncating the prior so that disallowed coefficient values have zero probability or by rejecting any MCMC draw that yields instability. &lt;br&gt;
 
 
-- The simplest “global‐move” approach—drawing the entire coefficient path via FFBS and discarding it if any period is unstable—is easy to implement but often suffers from extremely low acceptance rates. 
+- The simplest “global‐move” approach—drawing the entire coefficient path via FFBS and discarding it if any period is unstable—is easy to implement but often suffers from extremely low acceptance rates.&lt;br&gt;
 
-- A more efficient alternative is a “single‐move” or block‐update sampler, which perturbs one coefficient (or small block) at a time and checks stability locally; this improves feasibility at the cost of slower mixing across the full state space.
+- A more efficient alternative is a “single‐move” or block‐update sampler, which perturbs one coefficient (or small block) at a time and checks stability locally; this improves feasibility at the cost of slower mixing across the full state space.&lt;br&gt;
 
-- For detailed algorithms and exact‐sampling solutions, see Koop and Potter (2011), who develop both exact and approximate MCMC schemes that honor inequality constraints without relying on prior normalizing‐constant approximations. 
+- For detailed algorithms and exact‐sampling solutions, see Koop and Potter (2011), who develop both exact and approximate MCMC schemes that honor inequality constraints without relying on prior normalizing‐constant approximations. &lt;br&gt;
 
 # Imposing Inequality Restrictions — presenter notes (TVP–VAR)
 
 • Motivation (what/why)
-  – In TVP–VARs we often want **stability at every t**: the VAR’s characteristic roots should lie **outside the unit circle** so the system is non-explosive; otherwise IRFs/forecasts can blow up. :contentReference[oaicite:0]{index=0}
+  – In TVP–VARs we often want **stability at every t**: the VAR’s characteristic roots should lie **outside the unit circle** so the system is non-explosive; otherwise IRFs/forecasts can blow up. &lt;br&gt;
 
 • Why it’s hard in MCMC
-  – The **stationary region is a complicated, non-rectangular set**, so naïvely drawing coefficients and “rejecting if unstable” can be **inefficient or even incorrect** for state-space samplers. :contentReference[oaicite:1]{index=1}
-  – In medium/large VARs the chance a full draw satisfies stability **at every time t** can be tiny, which explains the poor mixing of brute-force rejection schemes. :contentReference[oaicite:2]{index=2}
+  – The **stationary region is a complicated, non-rectangular set**, so naïvely drawing coefficients and “rejecting if unstable” can be **inefficient or even incorrect** for state-space samplers. &lt;br&gt;
+  
+  – In medium/large VARs the chance a full draw satisfies stability **at every time t** can be tiny, which explains the poor mixing of brute-force rejection schemes. &lt;br&gt;
 
 • What the literature recommends (high level)
   1) **Algorithms that enforce inequality constraints on states**  
-     – Koop &amp; Potter develop **exact** MCMC methods for TVP-VARs with inequality-restricted states (e.g., stability at each t), noting standard multi-move smoothers can fail or mix poorly under such constraints. :contentReference[oaicite:3]{index=3}
+     – Koop &amp; Potter develop **exact** MCMC methods for TVP-VARs with inequality-restricted states (e.g., stability at each t), noting standard multi-move smoothers can fail or mix poorly under such constraints. &lt;br&gt;
+     – Their methods ensure draws always satisfy the constraints, avoiding the inefficiency of naïve rejection. &lt;br&gt;
   2) **Single-move/blocked state updates**  
-     – Update one coefficient/state (or a small block) at a time **conditional on the rest**, checking the constraint locally; mixes more slowly but **dramatically improves feasibility** vs. all-at-once draws. :contentReference[oaicite:4]{index=4}
+     – Update one coefficient/state (or a small block) at a time **conditional on the rest**, checking the constraint locally; mixes more slowly but **dramatically improves feasibility** vs. all-at-once draws. &lt;br&gt;
   3) **Prior-based enforcement (“soft” constraints)**  
-     – Put **stationarity-enforcing priors** so unstable regions have essentially zero prior mass; this avoids hard rejection while keeping draws in the stable set. :contentReference[oaicite:5]{index=5}
+     – Put **stationarity-enforcing priors** so unstable regions have essentially zero prior mass; this avoids hard rejection while keeping draws in the stable set. &lt;br&gt;
   4) **Inequality restrictions beyond stability**  
-     – The same machinery handles other inequalities (e.g., sign/zero/ordering constraints used for identification) within a Bayesian sampler. :contentReference[oaicite:6]{index=6}
+     – The same machinery handles other inequalities (e.g., sign/zero/ordering constraints used for identification) within a Bayesian sampler. &lt;br&gt;
 
 • Practical playbook you can say aloud
-  – **Screen initialization**: start from a stable constant-parameter VAR, then switch on time variation.  
-  – **Tight evolution variance (Q)**: shrink β’s random-walk innovations so drift is modest unless data demand it; this reduces excursions to unstable regions. (You can still allow SV in Σₜ.) :contentReference[oaicite:7]{index=7}  
+  – **Screen initialization**: start from a stable constant-parameter VAR, then switch on time variation.  &lt;br&gt;
+  – **Tight evolution variance (Q)**: shrink β’s random-walk innovations so drift is modest unless data demand it; this reduces excursions to unstable regions. (You can still allow SV in Σₜ.) &lt;br&gt;
+  
   – **Choose the enforcement style**:  
-     • Small systems: hard stability **at every t** via constrained state updates. :contentReference[oaicite:8]{index=8}  
-     • Larger systems: consider **prior-based** stationarity or enforce stability on key horizons (e.g., end-of-sample) to keep computation tractable. :contentReference[oaicite:9]{index=9}  
-  – **Always monitor**: proportion of unstable proposals, acceptance, trace plots, and the share of posterior draws that satisfy stability.
+    • Small systems: hard stability **at every t** via constrained state updates.&lt;br&gt;
+    
+   • Larger systems: consider **prior-based** stationarity or enforce stability on key horizons (e.g., end-of-sample) to keep computation tractable. &lt;br&gt;
+  – **Always monitor**: proportion of unstable proposals, acceptance, trace plots, and the share of posterior draws that satisfy stability.&lt;br&gt;
 
-• One-liner to close
-  – “Inequality restrictions (like stability) are essential but non-trivial in TVP-VARs; use **constrained state updates or stationarity-enforcing priors** instead of naïve rejection, and keep Q tight so the sampler stays in the economically plausible region.” 
+• One-liner to close&lt;br&gt;
+  – “Inequality restrictions (like stability) are essential but non-trivial in TVP-VARs; use **constrained state updates or stationarity-enforcing priors** instead of naïve rejection, and keep Q tight so the sampler stays in the economically plausible region.” &lt;br&gt;
 
 ---
 #  Stochastic Volatility in TVP–VARs
@@ -3368,17 +3385,36 @@ This slide emphasizes that allowing coefficients to drift freely in a time-varyi
 ???
 - Where:
   - `\(Z_t\)` is the `\((m+r)\times1\)` vector of observed variables and latent factors at time `\(t\)`.
-  - `\(A_i(t)\)` is the `\((m+r)\times(m+r)\)` coefficient matrix for lag `\(i\)` at time `\(t\)`, allowing for time-varying coefficients.
-  - `\(\Sigma(t)\)` is the covariance matrix of the errors at time `\(t\)`, allowing for time-varying volatility.
+  - `\(A_i(t)\)` is the `\((m+r)\times(m+r)\)` coefficient matrix for lag `\(i\)` at time `\(t\)`, allowing for time-varying coefficients.&lt;br&gt;
+  - `\(\Sigma(t)\)` is the covariance matrix of the errors at time `\(t\)`, allowing for time-varying volatility.&lt;br&gt;
   
 
-- The model assumes that the coefficients `\(A_i(t)\)` and the covariance matrix `\(\Sigma(t)\)` follow a random walk process, allowing them to change gradually over time.
+- The model assumes that the coefficients `\(A_i(t)\)` and the covariance matrix `\(\Sigma(t)\)` follow a random walk process, allowing them to change gradually over time.&lt;br&gt;
 
-- The random walk prior on the coefficients allows for gradual changes, capturing the evolving nature of economic relationships.
+- The random walk prior on the coefficients allows for gradual changes, capturing the evolving nature of economic relationships.&lt;br&gt;
 
-- The stochastic volatility component allows the model to account for changing uncertainty in the data, which can be particularly important in macroeconomic applications where volatility may vary due to structural changes or external shocks.
+- The stochastic volatility component allows the model to account for changing uncertainty in the data, which can be particularly important in macroeconomic applications where volatility may vary due to structural changes or external shocks.&lt;br&gt;
 
-
+---
+# Connectedness in Bayesian TVP-VAR
+&lt;div style="font-size: 17px;"&gt;
+- **Concept**  
+  - Connectedness captures how shocks in one variable transmit to others over time.  
+  - In **Bayesian TVP-VAR**, these linkages are *time-varying*, reflecting evolving macroeconomic dynamics.  
+- **Measurement**  
+  - Based on **Forecast Error Variance Decompositions (FEVDs)**:  
+    - Share of forecast error in variable *i* explained by shocks in variable *j*.  
+  - **Generalized FEVD** avoids ordering problems.  
+  - Connectedness indices summarize system-wide spillovers.  
+- **Indices** (Diebold–Yilmaz style)  
+  - **Total Connectedness Index (TCI):** Overall spillovers in the system.  
+  - **Directional Connectedness:**  
+    - *TO others*: variable’s shock influence on others.  
+    - *FROM others*: variable’s vulnerability to shocks.  
+  - **Net Connectedness:** Difference between *TO* and *FROM*.  
+- **Applications**  
+  - Financial contagion, monetary policy transmission, inflation–exchange rate–interest rate linkages
+  - Useful for central banks and policymakers to track systemic risk &amp; policy effectiveness.  
 
 ---
 # Example of TVP-BVAR
@@ -3788,39 +3824,39 @@ We call `\(B_0 \equiv A_0^{-1}\)` the **impact matrix**. Identifying the model =
 # Identification in SVARs — presenter notes
 
 • Why identification matters  
-  – The reduced-form VAR only pins down the covariance of errors; **structural shocks are not unique without restrictions** (rotation problem). Identification supplies extra information so shocks are economically interpretable. Great overviews: Kilian &amp; Lütkepohl; Stock’s lecture notes. :contentReference[oaicite:0]{index=0}
+  – The reduced-form VAR only pins down the covariance of errors; **structural shocks are not unique without restrictions** (rotation problem). Identification supplies extra information so shocks are economically interpretable. Great overviews: Kilian &amp; Lütkepohl; Stock’s lecture notes. &lt;br&gt;
 
 • Main identification families (what to tell the room)
   1) **Short-run (A₀) / Cholesky-type zero restrictions**  
-     – Set some **impact** responses to zero using theory/timing. Fast, transparent; sensitive to variable ordering. See textbook treatments. :contentReference[oaicite:1]{index=1}  
+     – Set some **impact** responses to zero using theory/timing. Fast, transparent; sensitive to variable ordering. See textbook treatments. &lt;br&gt;
   2) **Long-run restrictions (Blanchard–Quah)**  
-     – Impose that certain shocks have **no permanent effect** on some variables (e.g., demand has no long-run effect on output). Useful for supply vs demand splits, but can be fragile in small samples. :contentReference[oaicite:2]{index=2}  
+     – Impose that certain shocks have **no permanent effect** on some variables (e.g., demand has no long-run effect on output). Useful for supply vs demand splits, but can be fragile in small samples. &lt;br&gt; 
   3) **Sign restrictions (Uhlig)**  
-     – Constrain the **sign of impulse responses** over short horizons (e.g., contractionary monetary shock: ↑policy rate, ↓prices). Flexible and agnostic, but can leave sets of admissible shocks and is sensitive to design; see critiques and refinements. :contentReference[oaicite:3]{index=3}  
+     – Constrain the **sign of impulse responses** over short horizons (e.g., contractionary monetary shock: ↑policy rate, ↓prices). Flexible and agnostic, but can leave sets of admissible shocks and is sensitive to design; see critiques and refinements. :&lt;br&gt;
   4) **External instruments / Proxy-SVAR (SVAR-IV)**  
-     – Use an external series that is **correlated with the target shock but orthogonal to others** (e.g., high-frequency surprises, narrative shocks). Delivers point-identified IRFs under instrument relevance/exogeneity. :contentReference[oaicite:4]{index=4}  
+     – Use an external series that is **correlated with the target shock but orthogonal to others** (e.g., high-frequency surprises, narrative shocks). Delivers point-identified IRFs under instrument relevance/exogeneity. &lt;br&gt; 
   5) **Identification through heteroskedasticity**  
-     – Exploit **changes in volatility** (e.g., regimes) to separate shocks without zero/sign assumptions. Works when variances shift while the contemporaneous matrix is stable. :contentReference[oaicite:5]{index=5}  
+     – Exploit **changes in volatility** (e.g., regimes) to separate shocks without zero/sign assumptions. Works when variances shift while the contemporaneous matrix is stable. &lt;br&gt; 
   6) **Hybrids**  
-     – Combine sign restrictions with external instruments to sharpen identification and mitigate each method’s weaknesses. 
+     – Combine sign restrictions with external instruments to sharpen identification and mitigate each method’s weaknesses. &lt;br&gt;
      
 
-• Picking a strategy (how to guide the audience)
-  – **Start from theory &amp; context:** What shock? What institutional timing or neutrality beliefs are credible? (short-run vs long-run vs signs). 
+• Picking a strategy (how to guide the audience)&lt;br&gt;
+  – **Start from theory &amp; context:** What shock? What institutional timing or neutrality beliefs are credible? (short-run vs long-run vs signs). &lt;br&gt;
   
-  – **Data features:** If there are clear volatility regimes or good instruments, consider **heteroskedasticity** or **SVAR-IV**. 
+  – **Data features:** If there are clear volatility regimes or good instruments, consider **heteroskedasticity** or **SVAR-IV**. &lt;br&gt;
   
-  – **Transparency vs flexibility:** Cholesky is simple but order-dependent; sign restrictions are flexible but set-identified; SVAR-IV gives causal interpretation if instruments are strong and valid. 
+  – **Transparency vs flexibility:** Cholesky is simple but order-dependent; sign restrictions are flexible but set-identified; SVAR-IV gives causal interpretation if instruments are strong and valid.&lt;br&gt;
 
-• Good practice &amp; robustness (what to report)
-  – Show **sensitivity** to ordering, horizon windows for signs, alternative instruments, and admissible set summaries (median target, coverage). 
+• Good practice &amp; robustness (what to report)&lt;br&gt;
+  – Show **sensitivity** to ordering, horizon windows for signs, alternative instruments, and admissible set summaries (median target, coverage). &lt;br&gt;
   
-  – Check **first-stage strength** and exogeneity for instruments; document F-stats/covariances. 
+  – Check **first-stage strength** and exogeneity for instruments; document F-stats/covariances. &lt;br&gt;
   
-  – Where feasible, **triangulate**: compare results across identification schemes (e.g., signs vs SVAR-IV). 
+  – Where feasible, **triangulate**: compare results across identification schemes (e.g., signs vs SVAR-IV). &lt;br&gt;
 
-• One-liner to close  
-  – “SVAR identification is about adding credible restrictions—zeros, long-run, signs, instruments, or volatility—so shocks are uniquely interpretable; always pair the choice with **theory, diagnostics, and robustness checks**.” 
+• One-liner to close&lt;br&gt;  
+  – “SVAR identification is about adding credible restrictions—zeros, long-run, signs, instruments, or volatility—so shocks are uniquely interpretable; always pair the choice with **theory, diagnostics, and robustness checks**.” &lt;br&gt;
 
 ---
 # Bayesian reduced‑form (conjugate) setup
@@ -3846,45 +3882,45 @@ Minnesota‑type priors can be approximated within this conjugate family via sui
 ???
 # Bayesian reduced-form (conjugate) setup — presenter notes
 
-• What the symbols represent (no equations)
-  – **Σ**: covariance matrix of reduced-form shocks (how equation errors co-move).  
-  – **Φ**: all VAR coefficients stacked (intercepts + lag coefficients, one column per equation).  
-  – **X, Y**: stacked regressor matrix and response matrix from the VAR written as a multivariate regression.
+• What the symbols represent (no equations)&lt;br&gt;
+  – **Σ**: covariance matrix of reduced-form shocks (how equation errors co-move). &lt;br&gt;
+  – **Φ**: all VAR coefficients stacked (intercepts + lag coefficients, one column per equation). &lt;br&gt; 
+  – **X, Y**: stacked regressor matrix and response matrix from the VAR written as a multivariate regression.&lt;br&gt;
 
-• What “Matrix-Normal / Inverse-Wishart (MNIW) prior” means
-  – We place a **matrix-normal prior on Φ conditional on Σ** and an **inverse-Wishart prior on Σ**.  
-  – This choice is **conjugate** for a Gaussian likelihood: the **posterior stays in the same family** with updated hyperparameters that blend prior information and sample information.
+• What “Matrix-Normal / Inverse-Wishart (MNIW) prior” means&lt;br&gt;
+  – We place a **matrix-normal prior on Φ conditional on Σ** and an **inverse-Wishart prior on Σ**. &lt;br&gt; 
+  – This choice is **conjugate** for a Gaussian likelihood: the **posterior stays in the same family** with updated hyperparameters that blend prior information and sample information.&lt;br&gt;
 
-• How to *read* the posterior updates on the slide (intuition only)
-  – The updated **coefficient covariance** combines prior precision with sample precision (from \(X^\top X\)); more data ⇒ more weight on the sample.  
-  – The updated **coefficient mean** blends the prior mean with the least-squares fit \(X^\top Y\), weighted by those precisions.  
-  – The updated **scale/df for Σ** adds a “sum of squared residuals” term to the prior scale; more data ⇒ tighter uncertainty about Σ.
+• How to *read* the posterior updates on the slide (intuition only)&lt;br&gt;
+  – The updated **coefficient covariance** combines prior precision with sample precision (from `\((X^\top X)\)`; more data ⇒ more weight on the sample.  &lt;br&gt;
+  – The updated **coefficient mean** blends the prior mean with the least-squares fit `\((X^\top Y)\)`, weighted by those precisions. &lt;br&gt; 
+  – The updated **scale/df for Σ** adds a “sum of squared residuals” term to the prior scale; more data ⇒ tighter uncertainty about Σ.&lt;br&gt;
 
-• How to **draw one posterior sample** (the two-step recipe)
-  1) **Draw Σ** from its inverse-Wishart posterior (cross-equation variability).  
-  2) **Draw Φ | Σ** from a matrix-normal with the posterior mean and the updated row/column scales.  
-  – These two steps give a full draw \((Φ^{(s)}, Σ^{(s)})\) used for forecasts and IRFs.
+• How to **draw one posterior sample** (the two-step recipe)&lt;br&gt;
+  1) **Draw Σ** from its inverse-Wishart posterior (cross-equation variability).  &lt;br&gt;
+  2) **Draw Φ | Σ** from a matrix-normal with the posterior mean and the updated row/column scales. &lt;br&gt; 
+  – These two steps give a full draw `\(((Φ^{(s)}, Σ^{(s)})\)` used for forecasts and IRFs.&lt;br&gt;
 
-• Where **Minnesota-type beliefs** fit in
-  – You can **encode Minnesota structure inside MNIW** by choosing the prior **mean** \(Φ_0\) (e.g., own-lag persistence, cross-lags near zero) and the prior **covariance** \(V_0\) (lag-decay, scaling by residual std. devs.).  
-  – This keeps conjugacy (fast computation) while providing sensible shrinkage.
+• Where **Minnesota-type beliefs** fit in&lt;br&gt;
+  – You can **encode Minnesota structure inside MNIW** by choosing the prior **mean** \(Φ_0\) (e.g., own-lag persistence, cross-lags near zero) and the prior **covariance** \(V_0\) (lag-decay, scaling by residual std. devs.).  &lt;br&gt;
+  – This keeps conjugacy (fast computation) while providing sensible shrinkage.&lt;br&gt;
 
-• Quick **dimension check** (helps when coding)
-  – If there are \(k\) variables and \(p\) lags:  
-    • \(Y\): \(T \times k\) (rows after lagging).  
-    • \(X\): \(T \times (1+kp)\) (intercept + all lags).  
-    • \(Φ\): \((1+kp) \times k\).  
-  – In the matrix-normal, **Σ** scales **columns** (equations) and the updated **\(V\)** scales **rows** (regressors).
+• Quick **dimension check** (helps when coding)&lt;br&gt;
+  – If there are `\((k)\)` variables and `\((p)\)` lags:  &lt;br&gt;
+    • `\(Y\)`: `\((T \times k)\)` (rows after lagging).  &lt;br&gt;
+    • `\(X\)`: `\((T \times (1+kp)\)` (intercept + all lags).  &lt;br&gt;
+    • `\(Φ\)`: `\((1+kp) \times k)\)`.  &lt;br&gt;
+  – In the matrix-normal, **Σ** scales **columns** (equations) and the updated **(V)** scales **rows** (regressors).&lt;br&gt;
 
-• Why this setup is popular
-  – **Speed &amp; stability:** closed-form updates → efficient Gibbs sampling (draw Σ, then Φ).  
-  – **Forecasting:** each draw gives full predictive paths; averaging across draws yields **density forecasts** and **credible bands**.  
-  – **Interpretability:** priors \(Φ_0, V_0\) are an explicit, tunable way to embed domain beliefs (e.g., Minnesota).
+• Why this setup is popular&lt;br&gt;
+  – **Speed &amp; stability:** closed-form updates → efficient Gibbs sampling (draw Σ, then Φ).  &lt;br&gt;
+  – **Forecasting:** each draw gives full predictive paths; averaging across draws yields **density forecasts** and **credible bands**.  &lt;br&gt;
+  – **Interpretability:** priors `\((Φ_0, V_0)\)` are an explicit, tunable way to embed domain beliefs (e.g., Minnesota).&lt;br&gt;
 
 • Practical tips to say aloud
-  – Standardize variables or use appropriate scaling so \(V_0\) works as intended.  
-  – Avoid ultra-diffuse priors in small samples; use shrinkage to stabilize multi-equation estimates.  
-  – Check that Σ draws are positive-definite and monitor convergence before reporting IRFs/forecasts.
+  – Standardize variables or use appropriate scaling so `\((V_0)\)` works as intended. &lt;br&gt; 
+  – Avoid ultra-diffuse priors in small samples; use shrinkage to stabilize multi-equation estimates.&lt;br&gt;  
+  – Check that Σ draws are positive-definite and monitor convergence before reporting IRFs/forecasts.&lt;br&gt;
 
 ---
 # From reduced‑form posterior to **structural** posterior
@@ -3905,34 +3941,34 @@ with `\(D_0=I\)`, and for `\(h\ge 1\)`, `\(D_h = \sum_{j=1}^{\min(p,h)} A_j D_{h
 ???
 # From reduced-form posterior to **structural** posterior — presenter notes
 
-• Goal in one line  
-  – We start from a posterior draw of the **reduced-form** VAR, i.e., coefficients Φ^(s) and covariance Σ^(s). We want a corresponding draw of **structural objects** (impact matrix B₀^(s) and structural IRFs). :contentReference[oaicite:0]{index=0}
+• Goal in one line  &lt;br&gt;
+  – We start from a posterior draw of the **reduced-form** VAR, i.e., coefficients Φ^(s) and covariance Σ^(s). We want a corresponding draw of **structural objects** (impact matrix B₀^(s) and structural IRFs). &lt;br&gt;
 
-• Key device (RRWZ 2010) — how to get a candidate **impact matrix**  
-  1) Factor the reduced-form covariance with a **Cholesky**: Σ^(s) = P P′ (P lower triangular).  
-  2) Draw an **orthonormal matrix Q uniformly** from the orthogonal group (the **Haar** distribution). A practical recipe: take a random matrix with i.i.d. N(0,1) entries and use a **QR** decomposition; with a sign fix on the diagonal of R, the Q you get is Haar.  
-  3) Form a **candidate impact matrix** as B₀^(s) = P Q. By construction this reproduces Σ^(s) because B₀^(s) B₀^(s)′ = Σ^(s).  
-  – This is the standard RRWZ algorithm used in modern SVAR work. :contentReference[oaicite:1]{index=1}
+• Key device (RRWZ 2010) — how to get a candidate **impact matrix**  &lt;br&gt;
+  1) Factor the reduced-form covariance with a **Cholesky**: Σ^(s) = P P′ (P lower triangular). &lt;br&gt; 
+  2) Draw an **orthonormal matrix Q uniformly** from the orthogonal group (the **Haar** distribution). A practical recipe: take a random matrix with i.i.d. N(0,1) entries and use a **QR** decomposition; with a sign fix on the diagonal of R, the Q you get is Haar.  &lt;br&gt;
+  3) Form a **candidate impact matrix** as B₀^(s) = P Q. By construction this reproduces Σ^(s) because B₀^(s) B₀^(s)′ = Σ^(s).  &lt;br&gt;
+  – This is the standard RRWZ algorithm used in modern SVAR work.&lt;br&gt; 
+  
+• Enforcing identification **restrictions**  &lt;br&gt;
+  – With a candidate B₀^(s) in hand, **check the user’s identifying restrictions** (e.g., sign restrictions over certain horizons; zero restrictions; long-run neutrality constraints). &lt;br&gt; 
+  – **Accept** Q (hence B₀^(s)) **iff** all restrictions hold; otherwise **draw another Q** and test again. This accept–reject loop delivers draws from the **structural posterior** consistent with your reduced-form draw and your identification scheme. &lt;br&gt;
 
-• Enforcing identification **restrictions**  
-  – With a candidate B₀^(s) in hand, **check the user’s identifying restrictions** (e.g., sign restrictions over certain horizons; zero restrictions; long-run neutrality constraints).  
-  – **Accept** Q (hence B₀^(s)) **iff** all restrictions hold; otherwise **draw another Q** and test again. This accept–reject loop delivers draws from the **structural posterior** consistent with your reduced-form draw and your identification scheme. :contentReference[oaicite:2]{index=2}
+• From impact to **IRFs**  &lt;br&gt;
+  – Given Φ^(s) and an accepted B₀^(s), compute the **moving-average (MA) coefficients** of the VAR by standard recursion from the reduced-form coefficients (start at the identity and iterate using lag polynomials).  &lt;br&gt;
+  – Multiply those MA coefficients by B₀^(s) to obtain **structural impulse responses** for each horizon. Repeat for many draws to get posterior bands. &lt;br&gt;
 
-• From impact to **IRFs**  
-  – Given Φ^(s) and an accepted B₀^(s), compute the **moving-average (MA) coefficients** of the VAR by standard recursion from the reduced-form coefficients (start at the identity and iterate using lag polynomials).  
-  – Multiply those MA coefficients by B₀^(s) to obtain **structural impulse responses** for each horizon. Repeat for many draws to get posterior bands. :contentReference[oaicite:3]{index=3}
+• Why the Haar draw matters (intuition you can say aloud)  &lt;br&gt;
+  – The **Haar distribution** is the unique rotation-invariant uniform distribution on orthogonal matrices, so every admissible rotation is sampled **without bias**. QR-from-Gaussian is a fast way to sample it in practice. &lt;br&gt;
 
-• Why the Haar draw matters (intuition you can say aloud)  
-  – The **Haar distribution** is the unique rotation-invariant uniform distribution on orthogonal matrices, so every admissible rotation is sampled **without bias**. QR-from-Gaussian is a fast way to sample it in practice. :contentReference[oaicite:4]{index=4}
+• Practical tips for the audience  &lt;br&gt;
+  – **Sign/zero windows:** specify horizons and directions clearly; acceptance rates depend on how tight the restrictions are.  &lt;br&gt;
+  – **Normalizations:** fix column signs (and possibly column ordering) so shocks are comparable across draws.  &lt;br&gt;
+  – **Empty sets:** if acceptance is near zero, relax horizons or revisit the identifying assumptions.&lt;br&gt;  
+  – **Posterior summaries:** report median/quantile IRFs and, where relevant, the share of accepted draws that satisfy the restrictions. &lt;br&gt;
 
-• Practical tips for the audience  
-  – **Sign/zero windows:** specify horizons and directions clearly; acceptance rates depend on how tight the restrictions are.  
-  – **Normalizations:** fix column signs (and possibly column ordering) so shocks are comparable across draws.  
-  – **Empty sets:** if acceptance is near zero, relax horizons or revisit the identifying assumptions.  
-  – **Posterior summaries:** report median/quantile IRFs and, where relevant, the share of accepted draws that satisfy the restrictions. :contentReference[oaicite:5]{index=5}
-
-• One-liner wrap-up  
-  – “For each reduced-form draw, rotate the Cholesky by a Haar-uniform Q, keep only rotations that satisfy your identifying restrictions, and compute IRFs—those accepted rotations are your **structural posterior**.” 
+• One-liner wrap-up  &lt;br&gt;
+  – “For each reduced-form draw, rotate the Cholesky by a Haar-uniform Q, keep only rotations that satisfy your identifying restrictions, and compute IRFs—those accepted rotations are your **structural posterior**.” &lt;br&gt;
 
 ---
 #Identification by **restrictions on `\(B_0\)` (impact)** — “zero/recursive”
@@ -3955,28 +3991,28 @@ B_0 = A_0^{-1}\,.$$`
 ???
 # Identification by **zero/recursive** restrictions — presenter notes
 
-• What “recursive / short-run zero” means  
-  – Impose a **lower-triangular impact matrix** (ones on the diagonal). Economically: variables ordered earlier can affect later variables **within the period**, but not vice-versa; later variables respond only with a lag to earlier ones. This is the classic **Cholesky** (short-run exclusion) identification. :contentReference[oaicite:0]{index=0}
+• What “recursive / short-run zero” means &lt;br&gt; 
+  – Impose a **lower-triangular impact matrix** (ones on the diagonal). Economically: variables ordered earlier can affect later variables **within the period**, but not vice-versa; later variables respond only with a lag to earlier ones. This is the classic **Cholesky** (short-run exclusion) identification. &lt;br&gt;
 
-• How it’s implemented in practice  
-  – From a reduced-form covariance draw, take its **Cholesky factor**; that factor is the **impact matrix** consistent with the recursive zero pattern. In Bayesian or frequentist work, this corresponds to setting the upper-triangular entries to **zero** by construction. 
+• How it’s implemented in practice  &lt;br&gt;
+  – From a reduced-form covariance draw, take its **Cholesky factor**; that factor is the **impact matrix** consistent with the recursive zero pattern. In Bayesian or frequentist work, this corresponds to setting the upper-triangular entries to **zero** by construction. &lt;br&gt;
 
-• Relationship to the “rotation” view  
-  – Any valid impact matrix reproducing the same reduced-form covariance can be written as a **Cholesky factor times an orthonormal rotation**. The recursive scheme picks the **no-rotation** case (the Cholesky itself), i.e., the unique lower-triangular candidate with positive diagonal. 
+• Relationship to the “rotation” view  &lt;br&gt;
+  – Any valid impact matrix reproducing the same reduced-form covariance can be written as a **Cholesky factor times an orthonormal rotation**. The recursive scheme picks the **no-rotation** case (the Cholesky itself), i.e., the unique lower-triangular candidate with positive diagonal.&lt;br&gt; 
 
-• Economic reading to vocalize  
-  – Ordering = **timing assumption**: if variables are \([ \pi_t, y_t, i_t ]\), the policy rate reacts contemporaneously to prices and output, but prices/output **do not** respond within-period to the policy shock. Choose an order that matches institutional timing or theory for your application. 
+• Economic reading to vocalize  &lt;br&gt;
+  – Ordering = **timing assumption**: if variables are `\([ \pi_t, y_t, i_t ]\)`, the policy rate reacts contemporaneously to prices and output, but prices/output **do not** respond within-period to the policy shock. Choose an order that matches institutional timing or theory for your application. &lt;br&gt;
 
-• Calibration / linear constraints you can add  
-  – You may set specific **zeros** in the impact matrix (beyond triangularity) or **fix/normalize** diagonal elements (e.g., make them positive or set units). These are linear restrictions on the structural matrix’s entries and are easy to enforce in recursive setups. 
+• Calibration / linear constraints you can add  &lt;br&gt;
+  – You may set specific **zeros** in the impact matrix (beyond triangularity) or **fix/normalize** diagonal elements (e.g., make them positive or set units). These are linear restrictions on the structural matrix’s entries and are easy to enforce in recursive setups. &lt;br&gt;
 
-• Strengths and caveats to mention  
-  – **Pros:** fast, transparent, and easy to communicate; produces point-identified shocks and IRFs.
+• Strengths and caveats to mention  &lt;br&gt;
+  – **Pros:** fast, transparent, and easy to communicate; produces point-identified shocks and IRFs.&lt;br&gt;
   
-  – **Caveats:** results depend on **variable ordering**; if the timing assumptions are questionable, consider alternatives (sign restrictions, long-run restrictions, external instruments) or test multiple plausible orderings. 
+  – **Caveats:** results depend on **variable ordering**; if the timing assumptions are questionable, consider alternatives (sign restrictions, long-run restrictions, external instruments) or test multiple plausible orderings. &lt;br&gt;
 
-• Presenter tip  
-  – When showing IRFs, remind the audience which **ordering** you used and why it’s credible in your context; if you’ve checked robustness to re-orderings, say so explicitly. (Audiences expect this with recursive identification.) 
+• Presenter tip  &lt;br&gt;
+  – When showing IRFs, remind the audience which **ordering** you used and why it’s credible in your context; if you’ve checked robustness to re-orderings, say so explicitly. (Audiences expect this with recursive identification.) &lt;br&gt;
 
 ---
 #Identification by **sign restrictions**
@@ -3998,34 +4034,34 @@ This yields **posterior sets** of admissible IRFs/shocks; report medians and cre
 ???
 # Identification by **long-run restrictions** — presenter notes
 
-• What “long-run restriction” means  
-  – We impose restrictions on the **total accumulated (infinite-horizon) effect** of a structural shock on the variables. This is encoded in the **long-run impact matrix** (sum of all MA coefficients multiplied by the impact matrix). 
+• What “long-run restriction” means  &lt;br&gt;
+  – We impose restrictions on the **total accumulated (infinite-horizon) effect** of a structural shock on the variables. This is encoded in the **long-run impact matrix** (sum of all MA coefficients multiplied by the impact matrix). &lt;br&gt;
+  – Economically, this often reflects **neutrality** or **steady-state** beliefs (e.g., demand shocks do not affect output in the long run). &lt;br&gt;
+• Canonical example to say aloud (Blanchard–Quah)  &lt;br&gt;
+  – In a two-variable system (output level and unemployment or output level and prices), **aggregate demand shocks have **no long-run effect** on the level of output**, whereas supply shocks may have permanent effects. This single zero restriction delivers identification. &lt;br&gt;
 
-• Canonical example to say aloud (Blanchard–Quah)  
-  – In a two-variable system (output level and unemployment or output level and prices), **aggregate demand shocks have **no long-run effect** on the level of output**, whereas supply shocks may have permanent effects. This single zero restriction delivers identification. 
-
-• How we implement it for each posterior draw (high-level recipe)  
-  1) From the reduced-form draw `\(((\Phi^{(s)}, \Sigma^{(s)}))\)`, compute the **MA representation** and its **infinite-horizon sum** (the long-run multiplier). Software and notes show that this is obtained from the VAR coefficients without simulation of infinite horizons. 
+• How we implement it for each posterior draw (high-level recipe)  &lt;br&gt;
+  1) From the reduced-form draw `\(((\Phi^{(s)}, \Sigma^{(s)}))\)`, compute the **MA representation** and its **infinite-horizon sum** (the long-run multiplier). Software and notes show that this is obtained from the VAR coefficients without simulation of infinite horizons. &lt;br&gt;
   
-  2) Combine with a candidate **impact matrix** and **enforce linear restrictions** on the long-run multiplier (e.g., set selected entries to zero). Packages provide direct ways to impose these constraints on the long-run matrix. 
+  2) Combine with a candidate **impact matrix** and **enforce linear restrictions** on the long-run multiplier (e.g., set selected entries to zero). Packages provide direct ways to impose these constraints on the long-run matrix. &lt;br&gt;
   
-  3) If using a rotation approach: generate admissible rotations (e.g., by QR/Haar), **accept only those** whose long-run constraints hold, and compute IRFs from accepted draws. (Same accept–reject idea used for other SVAR restrictions.) 
+  3) If using a rotation approach: generate admissible rotations (e.g., by QR/Haar), **accept only those** whose long-run constraints hold, and compute IRFs from accepted draws. (Same accept–reject idea used for other SVAR restrictions.) &lt;br&gt;
 
-• Stationarity / integration considerations you can mention  
-  – For **stationary VARs**, the long-run sum exists directly.  
-  – With **I(1) data** (as in Blanchard–Quah), long-run restrictions are typically imposed on the **levels** using a **VECM** or differenced VAR with appropriate mapping; textbook treatments explain the required conditions. 
-  
-
-• Why use long-run restrictions  
-  – They exploit **economic neutrality/steady-state** ideas (e.g., demand neutrality for output in the long run) to separate shocks when short-run timing is less credible. Widely used in macro applications and discussed in modern surveys. 
+• Stationarity / integration considerations you can mention&lt;br&gt;  
+  – For **stationary VARs**, the long-run sum exists directly. &lt;br&gt; 
+  – With **I(1) data** (as in Blanchard–Quah), long-run restrictions are typically imposed on the **levels** using a **VECM** or differenced VAR with appropriate mapping; textbook treatments explain the required conditions. &lt;br&gt;
   
 
-• Practical tips / cautions to say aloud  
-  – Results can be **sensitive to lag length**, unit-root/cointegration specification, and small-sample uncertainty—report robustness (alternative lags, sample windows). :contentReference[oaicite:7]{index=7}  
-  – Always check that the **long-run matrix is well-defined** (VAR stability or correct VECM mapping) before imposing restrictions. 
+• Why use long-run restrictions  &lt;br&gt;
+  – They exploit **economic neutrality/steady-state** ideas (e.g., demand neutrality for output in the long run) to separate shocks when short-run timing is less credible. Widely used in macro applications and discussed in modern surveys. &lt;br&gt;
+  
 
-• One-liner  
-  – “Identify shocks by pinning down their **permanent effects**: compute the long-run multiplier from each reduced-form draw, **impose the zero (or sign) restrictions on that multiplier**, and keep only solutions that satisfy them.”
+• Practical tips / cautions to say aloud &lt;br&gt; 
+  – Results can be **sensitive to lag length**, unit-root/cointegration specification, and small-sample uncertainty—report robustness (alternative lags, sample windows). &lt;br&gt;
+  – Always check that the **long-run matrix is well-defined** (VAR stability or correct VECM mapping) before imposing restrictions. &lt;br&gt;
+
+• One-liner  &lt;br&gt;
+  – “Identify shocks by pinning down their **permanent effects**: compute the long-run multiplier from each reduced-form draw, **impose the zero (or sign) restrictions on that multiplier**, and keep only solutions that satisfy them.”&lt;br&gt;
 
 ---
 #Identification by **long‑run restrictions**
@@ -4042,31 +4078,31 @@ while supply shocks may have permanent effects. In practice, enforce linear rest
 ???
 # Identification by **long-run restrictions** — presenter notes
 
-• Intuition (say first)
+• Intuition (say first)&lt;br&gt;
   – We identify shocks by pinning down their **total (infinite-horizon) effect** on variables.  
-  – The *long-run impact matrix* is the **sum of all impulse responses**; in a stable VAR this equals a closed-form function of the VAR lags (so we don’t need to literally sum to infinity).
+  – The *long-run impact matrix* is the **sum of all impulse responses**; in a stable VAR this equals a closed-form function of the VAR lags (so we don’t need to literally sum to infinity).&lt;br&gt;
 
-• Canonical example (Blanchard–Quah)
-  – In a 2-variable system with output and (say) unemployment/prices, impose: **demand shocks have zero long-run effect on the level of output**; supply shocks may have permanent effects. That single zero restriction delivers identification. 
+• Canonical example (Blanchard–Quah)&lt;br&gt;
+  – In a 2-variable system with output and (say) unemployment/prices, impose: **demand shocks have zero long-run effect on the level of output**; supply shocks may have permanent effects. That single zero restriction delivers identification. &lt;br&gt;
 
-• How we implement this for each posterior draw (recipe)
-  1) From the reduced-form draw `\(((\Phi^{(s)},\Sigma^{(s)}))\)`, compute the **long-run multiplier** of the VAR (the sum of MA coefficients, or equivalently the closed-form long-run matrix implied by `\((\Phi^{(s)})\)` when roots are inside the unit circle). 
+• How we implement this for each posterior draw (recipe)&lt;br&gt;
+  1) From the reduced-form draw `\(((\Phi^{(s)},\Sigma^{(s)}))\)`, compute the **long-run multiplier** of the VAR (the sum of MA coefficients, or equivalently the closed-form long-run matrix implied by `\((\Phi^{(s)})\)` when roots are inside the unit circle).&lt;br&gt; 
   
-  2) Combine that long-run multiplier with a candidate **impact matrix** `\((B_0^{(s)})\)`.  
-  3) **Enforce linear long-run restrictions** (e.g., set selected entries of the long-run matrix to zero). If you sample rotations (QR/Haar), **accept only those** that satisfy the long-run constraints; otherwise, draw another rotation and re-test. 
+  2) Combine that long-run multiplier with a candidate **impact matrix** `\((B_0^{(s)})\)`.&lt;br&gt;  
+  3) **Enforce linear long-run restrictions** (e.g., set selected entries of the long-run matrix to zero). If you sample rotations (QR/Haar), **accept only those** that satisfy the long-run constraints; otherwise, draw another rotation and re-test. &lt;br&gt;
   
-  4) With an accepted `\((B_0^{(s)})\)`, recover **structural IRFs** in the usual way (recursion for MA coefficients × `\((B_0^{(s)}))\)`. 
+  4) With an accepted `\((B_0^{(s)})\)`, recover **structural IRFs** in the usual way (recursion for MA coefficients × `\((B_0^{(s)}))\)`. &lt;br&gt;
   
 
-• Practical notes you can say aloud
-  – **Stationarity vs I(1):** The closed-form long-run sum requires a stable VAR. With unit roots/cointegration (as in BQ), impose long-run restrictions in a **VECM** framework or use the appropriate mapping from the VAR in differences to levels. 
+• Practical notes you can say aloud&lt;br&gt;
+  – **Stationarity vs I(1):** The closed-form long-run sum requires a stable VAR. With unit roots/cointegration (as in BQ), impose long-run restrictions in a **VECM** framework or use the appropriate mapping from the VAR in differences to levels.&lt;br&gt; 
   
-  – **Sensitivity:** Results can depend on lag length and sample; show robustness (alternative lags/windows). 
+  – **Sensitivity:** Results can depend on lag length and sample; show robustness (alternative lags/windows). &lt;br&gt;
   
-  – **Software hint:** Many packages compute the long-run multiplier and apply BQ-style constraints directly (e.g., deriving \(B_0\) from the long-run matrix and `\((\Sigma))\)`. 
+  – **Software hint:** Many packages compute the long-run multiplier and apply BQ-style constraints directly (e.g., deriving `\((B_0)\)` from the long-run matrix and `\((\Sigma))\)`. &lt;br&gt;
 
-• One-liner to close
-  – “Long-run identification = constrain **permanent effects**. Compute the long-run multiplier from each reduced-form draw, **impose zero (or sign) restrictions on that multiplier**, accept admissible solutions, and read off the structural IRFs.” 
+• One-liner to close&lt;br&gt;
+  – “Long-run identification = constrain **permanent effects**. Compute the long-run multiplier from each reduced-form draw, **impose zero (or sign) restrictions on that multiplier**, accept admissible solutions, and read off the structural IRFs.”&lt;br&gt; 
 
 ---
 #  Worked patterns you can reuse
